@@ -1,5 +1,9 @@
 import Link from "next/link";
-export default function Home() {
+import { requireTeam } from "@/lib/auth";
+import { getOverview } from "@/lib/families/queries";
+export default async function Home() {
+  const session = await requireTeam();
+  const counts = session ? await getOverview(session.client) : null;
   return (
     <>
       <header>
@@ -8,9 +12,11 @@ export default function Home() {
           <h1>Cuidar começa por conhecer.</h1>
           <p>Organize o acolhimento e acompanhe cada família.</p>
         </div>
-        <Link className="button" href="/novo">
-          + Novo cadastro
-        </Link>
+        {(!session || session.canWrite) && (
+          <Link className="button" href="/novo">
+            + Novo cadastro
+          </Link>
+        )}
       </header>
       <div className="stats">
         {[
@@ -18,11 +24,13 @@ export default function Home() {
           "Famílias ativas",
           "Crianças acompanhadas",
           "Em análise",
-        ].map((label) => (
+        ].map((label, index) => (
           <section className="card" key={label}>
             <p>{label}</p>
-            <strong className="stat">—</strong>
-            <small>Aguardando integração</small>
+            <strong className="stat">{counts?.[index] ?? "—"}</strong>
+            <small>
+              {session ? "Cadastros da organização" : "Aguardando integração"}
+            </small>
           </section>
         ))}
       </div>
@@ -33,8 +41,8 @@ export default function Home() {
           Cadastro, informações das crianças e acompanhamento familiar em um
           único espaço.
         </p>
-        <Link className="button" href="/novo">
-          Conhecer o formulário →
+        <Link className="button" href={session ? "/familias" : "/novo"}>
+          {session ? "Acompanhar famílias →" : "Conhecer o formulário →"}
         </Link>
       </section>
       <section className="card">

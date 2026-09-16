@@ -1,20 +1,18 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import assert from "node:assert/strict";
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create schema auth;
 create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`);
-await db.exec(
-  readFileSync(
-    new URL(
-      "../supabase/migrations/20260916204009_initial_schema.sql",
-      import.meta.url,
-    ),
-    "utf8",
-  ).replace(/^\uFEFF/, ""),
-);
+const migrationDir = new URL("../supabase/migrations/", import.meta.url);
+for (const name of readdirSync(migrationDir)
+  .filter((name) => name.endsWith(".sql"))
+  .sort())
+  await db.exec(
+    readFileSync(new URL(name, migrationDir), "utf8").replace(/^\uFEFF/, ""),
+  );
 const staff = "00000000-0000-4000-8000-000000000001",
   viewer = "00000000-0000-4000-8000-000000000002",
   outsider = "00000000-0000-4000-8000-000000000003";
@@ -31,7 +29,7 @@ async function as(role, id, query) {
 async function denied(role, id, sql) {
   await assert.rejects(
     () => as(role, id, sql),
-    /permission denied|row-level security/,
+    (error) => error.code === "42501",
   );
 }
 await denied("anon", "", `select * from public.families`);
@@ -114,6 +112,94 @@ const after = (
   await db.query(`select updated_at from public.families where id='${family}'`)
 ).rows[0].updated_at;
 assert.ok(new Date(after) >= new Date(before));
+const requestId = "00000000-0000-4000-8000-000000000010";
+const familyPayload = {
+  responsible_name: "TEST RPC",
+  responsible_birth_date: "2000-01-01",
+  household_size: 1,
+  working_people: 0,
+  number_of_children: 1,
+  status: "em análise",
+};
+const childPayload = {
+  name: "TEST CHILD",
+  birth_date: "2020-01-01",
+  has_special_needs: false,
+  in_treatment: false,
+  uses_diaper: false,
+  studies: false,
+};
+const sqlLiteral = (value) =>
+  `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb`;
+const rpc = (request, children = [childPayload], note = "TEST NOTE") =>
+  `select public.register_family('${request}',${sqlLiteral(familyPayload)},${sqlLiteral(children)},'${note}') as id`;
+await denied("anon", "", rpc(requestId));
+await denied("authenticated", viewer, rpc(requestId));
+await denied("authenticated", outsider, rpc(requestId));
+const registered = (await as("authenticated", staff, rpc(requestId))).rows[0]
+  .id;
+assert.equal(
+  (await as("authenticated", staff, rpc(requestId))).rows[0].id,
+  registered,
+);
+assert.equal(
+  (
+    await db.query(
+      `select * from public.children where family_id='${registered}'`,
+    )
+  ).rows.length,
+  1,
+);
+assert.equal(
+  (
+    await db.query(
+      `select * from public.family_notes where family_id='${registered}'`,
+    )
+  ).rows.length,
+  1,
+);
+const rollbackId = "00000000-0000-4000-8000-000000000011";
+await assert.rejects(
+  () =>
+    as(
+      "authenticated",
+      staff,
+      rpc(rollbackId, [{ ...childPayload, name: "" }]),
+    ),
+  /check constraint/,
+);
+assert.equal(
+  (
+    await db.query(
+      `select * from public.families where request_id='${rollbackId}'`,
+    )
+  ).rows.length,
+  0,
+);
+await assert.rejects(
+  () => as("authenticated", staff, rpc(rollbackId, [])),
+  /Child count mismatch/,
+);
+await assert.rejects(
+  () =>
+    as(
+      "authenticated",
+      staff,
+      rpc(rollbackId, [childPayload], "X".repeat(5001)),
+    ),
+  /check constraint/,
+);
+assert.equal(
+  (
+    await db.query(
+      `select * from public.families where request_id='${rollbackId}'`,
+    )
+  ).rows.length,
+  0,
+);
+console.log(
+  "PASS: transactional registration, retry idempotency, child-count validation, rollback on invalid child/note and RPC access controls.",
+);
 await db.close();
 console.log(
   "PASS: migration, anonymous denial, unprovisioned denial, team permissions, role escalation denial, note authorship, constraints and timestamps.",

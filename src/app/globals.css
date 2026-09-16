@@ -428,3 +428,91 @@ textarea {
     padding: 0 18px 20px;
   }
 }
+.form-body {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+main > .card + .card {
+  margin-top: 24px;
+}
+.search-form {
+  display: flex;
+  align-items: end;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+.search-form .field {
+  flex: 1;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 10px;
+}
+th {
+  color: var(--muted);
+  font-weight: 600;
+}
+td a {
+  color: var(--green);
+  font-weight: bold;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 20px 0;
+}
+dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.note {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.note time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.note p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+.login-card {
+  max-width: 760px;
+}
+@media (max-width: 700px) {
+  .search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-actions {
+    flex-wrap: wrap;
+  }
+}

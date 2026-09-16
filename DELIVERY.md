@@ -1,30 +1,27 @@
-# Relatório de entrega — Ficha TMJ
+# Entrega — segunda etapa do Ficha TMJ
 
-## Implementação
+## Implementado
 
-Base criada diretamente na raiz do diretório solicitado. O Git local estava sem commits e sem remoto; `git ls-remote` confirmou que o remoto não tinha referências. O diretório existente foi aproveitado, sem criar subpasta e sem apagar arquivos prévios.
+- Login por email/senha, saída, verificação do usuário e do perfil de equipe.
+- Proxy de renovação de sessão; páginas dinâmicas e autorização no servidor.
+- Validação completa com Zod, normalização de campos condicionais e erros em português.
+- Cadastro transacional de família, crianças e primeira observação, com repetição idempotente.
+- Listagem de famílias com busca, situação e paginação.
+- Ficha detalhada, observações e atualização de situação com detecção de conflitos.
+- Totais reais no dashboard e relatório agregado quando o Supabase está configurado.
+- Estados de carregamento, falha, acesso negado e demonstração sem persistência.
+- Testes automatizados e workflow de qualidade no GitHub Actions.
 
-Páginas: Dashboard, Famílias, Novo cadastro e Relatórios. Navegação responsiva, estados vazios honestos, formulário com três etapas, crianças dinâmicas, campos condicionais, idades e timestamps. Nenhum dado real, segredo ou persistência de cadastros foi incluído.
+## Verificação local
 
-Arquivos principais estão descritos no README. Incluem `src/app`, `src/components`, `src/lib`, `.env.example`, a migration SQL e os testes em `scripts`.
+Lint, TypeScript e build aprovados. Testes de idade, validação do cadastro e componente React aprovados. No PGlite, as duas migrations foram executadas e testadas: bloqueio de anônimos/usuários sem perfil, permissões da equipe, autoria de notas, gravação transacional, rollback, quantidade de crianças e repetição sem duplicação.
 
-## Dependências
+A navegação de demonstração, a nova página de acesso e o formulário em largura de celular foram inspecionados no navegador integrado, sem erros de console observados. Os testes do formulário cobrem as três etapas, idades, geração de crianças, campos condicionais, conclusão local e estado de envio conectado com resposta simulada.
 
-Produção: Next.js 16.3.5, React/React DOM 19.2.8, @supabase/supabase-js 2.116.0 e @supabase/ssr 0.12.7.
-Desenvolvimento: TypeScript, Tailwind CSS 4, @tailwindcss/postcss, ESLint/config Next, tipos Node/React, Supabase CLI 2.117.0, Prettier e PGlite. Versões resolvidas constam no package-lock.json.
+## Limites e ativação
 
-## Verificações
+Nenhum projeto Supabase foi selecionado para o Ficha TMJ. Não foram criados projetos, aplicadas migrations em nuvem, configuradas credenciais, criadas contas nem publicado um deploy Vercel. Login real, renovação de sessão e gravação via API ainda precisam de verificação ponta a ponta após a escolha do projeto e provisionamento dos usuários.
 
-- npm install: concluído; auditoria informou zero vulnerabilidades.
-- npm run lint: aprovado.
-- npm run typecheck: aprovado.
-- npm run build: aprovado, com as quatro rotas pré-renderizadas.
-- npm test: aprovado, incluindo cálculo de idade e execução da migration com testes de RLS.
-- HTTP local: `/`, `/familias`, `/novo`, `/relatorios` retornaram 200.
-- Inspeção visual: dashboard e formulário renderizados; campo condicional de moradia verificado. O navegador integrado encerrou a aba durante interação com o controle nativo de data. O fluxo completo do formulário e a visualização móvel ainda precisam de uma nova verificação em navegador. A CLI agent-browser teve timeout.
-- PostgreSQL: migration executada em PGlite com mocks mínimos de Auth. Docker não estava ativo; Supabase real, Auth e API não foram testados.
-- Git: arquivos de ambiente, node_modules, artefatos, ZIPs e temporários ignorados; .env.example contém somente variáveis vazias.
+A aplicação continua em demonstração local. Para ativar, siga o README: configure URL/chave pública, aplique as duas migrations em ordem, crie os perfis autorizados e reinicie/republique a aplicação. Se a migration inicial já estiver aplicada, execute apenas a segunda.
 
-## Configuração manual restante
-
-Criar/configurar o projeto Supabase, aplicar a migration, provisionar usuários/perfis e definir as permissões operacionais. Implementar login, renovação de sessão e persistência com validação no servidor antes de inserir dados reais. Conectar o repositório à Vercel para deploy. Relatórios e Excel são etapas futuras.
+Edição completa de cadastros, convites/recuperação de senha, auditoria de alterações, relatórios avançados e exportação Excel ficam para próximas etapas.

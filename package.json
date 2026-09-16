@@ -11,26 +11,33 @@
     "test:db": "node scripts/test-db.mjs",
     "format": "prettier --write src scripts README.md package.json",
     "test:date": "node scripts/test-date.mjs",
-    "test": "npm run test:date && npm run test:db"
+    "test": "npm run test:date && npm run test:registration && npm run test:form && npm run test:db",
+    "test:registration": "tsx scripts/test-registration.mjs",
+    "test:form": "tsx scripts/test-form.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.116.0",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "16.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "jsdom": "29.1.1",
     "prettier": "3.9.7",
     "supabase": "2.117.0",
     "tailwindcss": "^4",
+    "tsx": "4.23.13",
     "typescript": "^5"
   }
 }

@@ -1,95 +1,110 @@
 # Ficha TMJ
 
-Plataforma web para cadastro e acompanhamento de famílias atendidas por uma organização. Esta entrega é uma base visual funcional: os dados do formulário ficam **somente na memória da página**, sem envio, localStorage, cookies de cadastro ou persistência. Use apenas dados fictícios. Sair ou recarregar descarta o preenchimento.
+Plataforma web para cadastro e acompanhamento de famílias atendidas por uma organização.
+
+## Funcionalidades
+
+- Dashboard com totais reais no modo conectado.
+- Login por email/senha para usuários previamente autorizados e saída da sessão.
+- Proteção de rotas e operações no servidor, renovação de sessão e RLS.
+- Cadastro em três etapas: responsável, crianças e acompanhamento.
+- Crianças dinâmicas, campos condicionais e cálculo automático de idade.
+- Gravação transacional de família, crianças e primeira observação. Uma repetição do mesmo envio não duplica o cadastro.
+- Busca por responsável, filtro por situação e paginação de 20 famílias.
+- Ficha detalhada, alteração da situação e inclusão de observações.
+- Detecção de alterações simultâneas ao atualizar a situação.
+- Relatório agregado por situação. Exportação Excel fica para uma próxima etapa.
+
+## Dois modos de execução
+
+**Demonstração:** sem URL e chave Supabase, o formulário funciona somente em memória, sem enviar ou persistir cadastros. Use apenas dados fictícios. Sair ou recarregar descarta o preenchimento. A tela de login explica que a integração ainda não está configurada.
+
+**Conectado:** com as duas variáveis configuradas, exige autenticação e perfil de equipe. O formulário passa a salvar no Supabase e as páginas consultam os registros protegidos por RLS. Configuração parcial resulta em erro; ela não ativa uma demonstração silenciosa. Falhas de acesso/banco não geram números fictícios nem abrem acesso público.
 
 ## Tecnologias e requisitos
 
-Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, ESLint, Supabase/PostgreSQL e preparação para Supabase Auth. Node.js 22.16+ e npm 10+. Vercel é o destino de hospedagem previsto; Excel será somente uma exportação futura.
-
-## Instalação e execução
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Supabase/PostgreSQL, Supabase Auth e Zod. Node.js 22.16+ e npm 10+. ESLint, Prettier, Testing Library/JSDOM e PGlite para qualidade. Vercel é a hospedagem prevista; Excel não é o banco de dados.
 
 ```sh
 git clone https://github.com/devhmb01-cloud/fichatmj.git
 cd fichatmj
-npm install
+npm ci
 npm run dev
 ```
 
-Abra http://localhost:3000. As rotas são `/`, `/familias`, `/novo` e `/relatorios`. O build e o desenvolvimento usam Webpack.
+Abra http://localhost:3000. Desenvolvimento e build usam Webpack.
 
 ```sh
 npm run lint
 npm run typecheck
+npm test
 npm run build
 npm start
-npm run test:db
 ```
 
-O último comando verifica a migration em PostgreSQL embutido (PGlite), com um mock mínimo de `auth.users` e `auth.uid()`. Não substitui testes de integração no Supabase real.
+Testes individuais: `test:date`, `test:registration`, `test:form` e `test:db`. Os testes do componente usam JSDOM e simulam a resposta do servidor; o banco é PostgreSQL embutido com mocks mínimos de Auth. Eles não substituem testes com o Supabase real. O GitHub Actions executa os checks em pushes para main e pull requests.
 
-## Configuração do ambiente
+## Ambiente e Supabase
 
-Copie `.env.example` para `.env.local`. Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` a partir do painel do projeto. `NEXT_PUBLIC_SUPABASE_ANON_KEY` é uma alternativa legada. Não é necessário preencher nada para usar a prévia.
+1. Escolha ou crie um projeto Supabase específico para a organização. Esta entrega não configura projetos remotos automaticamente.
+2. Copie `.env.example` para `.env.local` e preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. A chave legada `NEXT_PUBLIC_SUPABASE_ANON_KEY` é alternativa à publishable key.
+3. Nunca use `service_role` ou secret key no frontend. Não envie `.env.local` ao Git. O exemplo contém somente variáveis vazias.
+4. Aplique as duas migrations, em ordem, no SQL Editor de um projeto novo:
+   - `supabase/migrations/20260916204009_initial_schema.sql`
+   - `supabase/migrations/20260916205702_family_registration.sql`
+5. Se a primeira migration já foi aplicada, execute somente a segunda. Não reexecute arquivos sobre objetos existentes.
+6. Alternativamente, configure a CLI instalada. Consulte `npx supabase --help` e `npx supabase db push --help` antes de aplicar por CLI. Aplicação pelo SQL Editor não registra automaticamente o histórico da CLI; escolha um fluxo e reconcilie o histórico antes de alternar.
+7. Em Auth, desative cadastro público e login anônimo. Provisione contas da equipe pelo painel, com email confirmado e senha definida por um fluxo administrativo seguro. O app não tem cadastro público nem recuperação de senha; a administração deve cuidar desses fluxos nesta etapa.
+8. Para cada conta, crie administrativamente um registro em `public.profiles`, com `id` igual ao UUID de `auth.users`, `full_name` e `role` (`admin`, `staff` ou `viewer`). Não há autopromoção pelo aplicativo.
+9. Reinicie o servidor após configurar as variáveis. Em hospedagem, faça um novo deploy.
+10. Confira login, expiração de sessão, bloqueio de usuário sem perfil e operações com cada papel no projeto real antes de iniciar operação.
 
-Os clientes em `src/lib/supabase` retornam `null` sem configuração e não são chamados pelo formulário. Nunca use `service_role` ou uma secret key em variáveis `NEXT_PUBLIC_`. `.env*` está ignorado, exceto `.env.example` vazio.
+## Segurança e modelo de acesso
+
+Uma organização por banco. Todos os perfis provisionados têm acesso aos dados da organização inteira. `viewer` lê; `staff` e `admin` cadastram/atualizam famílias e crianças e inserem notas. Um usuário Auth sem perfil não acessa os dados familiares. Anônimos não têm privilégios nas tabelas ou na função de cadastro.
+
+Cada página e Server Action exige usuário verificado e consulta o perfil no banco. A interface é uma conveniência; a autorização também ocorre no servidor e no PostgreSQL. O proxy renova a sessão, as páginas são dinâmicas e as respostas protegidas não podem ser compartilhadas em cache. Credenciais e dados de formulários não são registrados em logs da aplicação.
+
+As tabelas têm UUIDs, FKs, índices, constraints, timestamps e RLS. A função `register_family` é SECURITY INVOKER: mantém as permissões do usuário, não utiliza service role e executa tudo na mesma transação. O identificador de requisição evita duplicação em novas tentativas. Caso a resposta seja perdida, tente novamente na mesma tela; recarregá-la descarta esse identificador.
+
+A validação compartilhada é executada novamente no servidor e permite somente campos conhecidos. Campos ocultos são normalizados para nulo. Timestamps são definidos no banco. A atualização de situação verifica `updated_at` para evitar sobrescrever uma alteração concorrente. Notas guardam a autoria, não podem ser editadas ou excluídas pela API e exibem até as 50 mais recentes. Exclusão de famílias e administração de perfis seguem bloqueadas na API.
+
+A quantidade declarada de filhos e as fichas são consistentes no cadastro transacional. Alterações administrativas diretas no banco devem manter essa relação. A futura edição completa de cadastros deverá usar outra operação transacional.
 
 ## Estrutura
 
 ```text
 src/
   app/
-    page.tsx                 Dashboard
-    layout.tsx               Layout e metadados
-    globals.css              Tema responsivo
-    familias/page.tsx        Estado inicial da listagem
-    novo/page.tsx            Cadastro
-    relatorios/page.tsx      Relatórios futuros
-  components/
-    app-shell.tsx            Navegação compartilhada
-    family-form.tsx          Formulário de três etapas
+    page.tsx                  Dashboard
+    layout.tsx                Layout dinâmico, sem cache compartilhado
+    login/                    Página e ações de sessão
+    acesso-negado/            Aviso de permissão insuficiente
+    familias/
+      page.tsx                Listagem
+      actions.ts              Busca autenticada
+      [id]/                   Ficha, notas e atualização de situação
+    novo/                     Formulário e ação de cadastro
+    relatorios/               Indicadores agregados
+    error.tsx / loading.tsx   Estados de erro e carregamento
+  components/                 Navegação e formulários
   lib/
-    date.ts                  Datas e cálculo de idade
-    supabase/client.ts       Cliente de navegador opcional
-    supabase/server.ts       Cliente para Actions/Route Handlers
-supabase/migrations/         Schema e políticas RLS
-scripts/                     Verificação do banco
+    auth.ts                   Usuário verificado e autorização
+    date.ts                   Datas e idade
+    families/                 Validação, tipos e consultas
+    supabase/                 Configuração e clientes
+  proxy.ts                    Renovação de sessão e proteção inicial
+supabase/migrations/          Schema, RLS e cadastro transacional
+scripts/                      Testes automatizados
+.github/workflows/quality.yml Verificação contínua
 ```
 
-## Formulário
+## Dados sensíveis
 
-Responsável familiar, crianças e acompanhamento. Quantidade de filhos gera fichas individuais (0–30 nesta prévia). Alterar temporariamente a quantidade preserva as fichas em memória para evitar perdas acidentais; somente a quantidade selecionada é exibida. Campos de moradia, saúde, tratamento, fraldas e escola são condicionais. Desmarcar uma condição limpa seus detalhes. Idades são calculadas por data civil, sem converter nascimento para UTC. Datas de cadastro/modificação são geradas na primeira alteração e nas alterações seguintes; o banco será a autoridade desses timestamps na integração.
+A organização deve definir finalidade, base legal, transparência, retenção, atendimento de direitos e responsáveis pelo acesso antes de operação real. Restrinja dados de saúde ao necessário, revise os papéis autorizados e configure backups/restauração. Não publique exportações nem registre formulários em telemetria. A busca não coloca o nome pesquisado na URL de navegação. RLS e autenticação não representam conformidade completa com a LGPD.
 
-Há validação de obrigatórios, email, CEP, datas futuras e total de trabalhadores. A conclusão mostra explicitamente que nenhum dado foi salvo. Dashboard e relatórios não exibem dados inventados.
+## Vercel e próximos passos
 
-## Supabase e migrations
+Importe o repositório com preset Next.js, instalação `npm ci`, build `npm run build` e raiz do repositório. Configure variáveis por ambiente. Não houve deploy nesta etapa.
 
-1. Crie um projeto Supabase administrado pela organização.
-2. No SQL Editor de um projeto novo, execute o arquivo `supabase/migrations/20260916204009_initial_schema.sql` completo. A migration usa uma transação. Não reexecute sobre tabelas já criadas.
-3. Alternativamente, use a CLI instalada: consulte `npx supabase --help`, configure o projeto e confira `npx supabase db push --help` antes de aplicar migrations por CLI. Escolha um fluxo; aplicação manual não registra automaticamente o histórico da CLI.
-4. Configure Supabase Auth com acesso por convite e desative cadastro público/anônimo. Crie os usuários autorizados no painel e provisione cada registro em `profiles` administrativamente usando o UUID de `auth.users`. Não há criação automática de perfis pela aplicação.
-5. Teste as políticas com usuários de cada papel antes de conectar dados reais.
-
-Tabelas: `profiles`, `families`, `children`, `family_notes`. UUIDs, FKs, índices, constraints, timestamps e triggers de atualização estão incluídos. `number_of_children` é a quantidade declarada; a futura operação transacional de cadastro deverá manter a relação com as fichas de crianças.
-
-### Modelo de acesso inicial
-
-Uma única organização, com equipe explicitamente autorizada. `viewer` lê as famílias, crianças e notas; `staff` e `admin` também cadastram e alteram famílias/crianças e inserem notas. Qualquer usuário sem perfil, inclusive um cadastro Auth isolado, não acessa dados familiares. Usuários anônimos não possuem privilégios nas quatro tabelas. Perfis são somente leitura do próprio usuário; ninguém muda o próprio papel via API. Exclusão pela API, edição de notas e administração de perfis ficam bloqueadas. Não há função SECURITY DEFINER.
-
-Todos os membros provisionados têm acesso à organização inteira. Defina escopos por equipe/família antes de adotar uma operação com múltiplas organizações. A autenticação, renovação de sessão via proxy, autorização de rotas e gravação no servidor ainda precisam ser implementadas. O helper de servidor deve ser usado em contextos que permitem escrever cookies.
-
-## Dados sensíveis e LGPD
-
-Antes de operação real, a organização deve definir finalidade, base legal, transparência, retenção, atendimento de direitos e responsáveis por acesso. Restrinja informações de saúde ao necessário. Não registre conteúdo de formulários em logs, telemetria, URLs ou relatórios públicos. Planeje auditoria, backups e testes de restauração, exclusão controlada, proteção das exportações e revisão periódica de permissões. RLS é uma camada de segurança, não uma implementação completa de conformidade.
-
-## Vercel
-
-Importe o repositório na Vercel com preset Next.js, raiz do repositório, instalação `npm ci` e build `npm run build`. Não há credenciais ou deploy criado nesta entrega. Configure as variáveis por ambiente e implemente autenticação/autorização antes de usar dados reais. A prévia funciona sem Supabase.
-
-## Próximos passos
-
-- Login por convite, sessão segura e proteção das rotas.
-- Validação no servidor e cadastro transacional com tratamento de erros.
-- Listagem, busca, edição e histórico de acompanhamento.
-- Testes no Supabase real e revisão das permissões com a organização.
-- Relatórios e exportação Excel com acesso restrito.
-- Publicação na Vercel e operação monitorada.
+Pendências: definir o projeto Supabase e provisionar a equipe; validar Auth/API e sessões de ponta a ponta com o banco real; edição completa de cadastros; recuperação de senha/convites; auditoria de alterações; relatórios avançados e Excel; política operacional de retenção; publicação e monitoramento na Vercel.

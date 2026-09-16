@@ -1,6 +1,11 @@
 "use client";
 import { useRef, useState, type InputHTMLAttributes } from "react";
 import { calculateAge, todayISO } from "@/lib/date";
+import {
+  registrationSchema,
+  type RegistrationResult,
+} from "@/lib/families/validation";
+import Link from "next/link";
 
 type Child = {
   id: string;
@@ -133,13 +138,20 @@ const titles = [
   "Crianças",
   "Controle / acompanhamento",
 ];
-export function FamilyForm() {
+export function FamilyForm({
+  saveAction,
+}: {
+  saveAction?: (payload: unknown) => Promise<RegistrationResult>;
+}) {
   const [step, setStep] = useState(0);
   const [family, setFamily] = useState<Family>(initialFamily);
   const [children, setChildren] = useState<Child[]>([]);
   const [created, setCreated] = useState("");
   const [updated, setUpdated] = useState("");
   const [message, setMessage] = useState("");
+  const [pending, setPending] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const requestId = useRef<string | null>(null);
   const form = useRef<HTMLFormElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   function touch() {
@@ -240,12 +252,66 @@ export function FamilyForm() {
     value
       ? new Date(value).toLocaleString("pt-BR")
       : "Automática ao iniciar o preenchimento";
+  async function submit() {
+    if (pending || !valid()) return;
+    requestId.current ??= crypto.randomUUID();
+    const payload = {
+      requestId: requestId.current,
+      family,
+      children: children.slice(0, Number(family.number_of_children)),
+    };
+    const validation = registrationSchema.safeParse(payload);
+    if (!validation.success) {
+      const issue = validation.error.issues[0];
+      setStep(
+        issue.path[0] === "children"
+          ? 1
+          : ["status", "activation_date", "notes"].includes(
+                String(issue.path[1]),
+              )
+            ? 2
+            : 0,
+      );
+      setMessage(issue.message);
+      return;
+    }
+    if (!saveAction) {
+      setMessage(
+        "Prévia concluída. Os dados permanecem somente nesta tela e não foram salvos. Ao sair ou recarregar, serão descartados.",
+      );
+      return;
+    }
+    setPending(true);
+    setMessage("");
+    try {
+      const result = await saveAction(payload);
+      if (result.ok) setSavedId(result.id);
+      else setMessage(result.message);
+    } catch {
+      setMessage(
+        "Não foi possível confirmar o envio. Mantenha esta tela aberta e tente novamente. Se sua sessão expirou, entre novamente em outra aba.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+  if (savedId)
+    return (
+      <section className="card empty" role="status">
+        <h2>Família cadastrada</h2>
+        <p>O cadastro e as fichas das crianças foram salvos com sucesso.</p>
+        <Link className="button" href={`/familias/${savedId}`}>
+          Abrir acompanhamento
+        </Link>
+      </section>
+    );
   return (
     <>
       <div className="form-steps" aria-label="Etapas do cadastro">
         {titles.map((title, i) => (
           <button
             type="button"
+            disabled={pending}
             key={title}
             aria-current={step === i ? "step" : undefined}
             onClick={() => navigate(i)}
@@ -264,255 +330,263 @@ export function FamilyForm() {
             navigate(step + 1);
             return;
           }
-          if (valid()) {
-            setMessage(
-              "Prévia concluída. Os dados permanecem somente nesta tela e não foram salvos. Ao sair ou recarregar, serão descartados.",
-            );
-          }
+          void submit();
         }}
       >
-        <h2 ref={heading} tabIndex={-1}>
-          {titles[step]}
-        </h2>
-        <p>Etapa {step + 1} de 3 · Campos com * são obrigatórios.</p>
-        {step === 0 && (
-          <div className="form-grid">
-            {field("responsible_name", "Nome da mãe / responsável", {
-              required: true,
-              pattern: ".*\\S.*",
-            })}
-            {field("responsible_birth_date", "Data de nascimento", {
-              type: "date",
-              max: todayISO(),
-              required: true,
-            })}
-            <Field
-              label="Idade calculada"
-              readOnly
-              value={
-                calculateAge(family.responsible_birth_date) === null
-                  ? "—"
-                  : `${calculateAge(family.responsible_birth_date)} anos`
-              }
-            />
-            {field("phone", "Telefone / celular", { type: "tel" })}
-            {field("email", "Email", { type: "email" })}
-            {field("profession", "Profissão")}
-            {field("address", "Endereço")}
-            {field("city", "Cidade")}
-            {field("cep", "CEP", {
-              pattern: "[0-9]{5}-?[0-9]{3}",
-              placeholder: "00000-000",
-              maxLength: 9,
-            })}
-            <Select
-              label="Situação da casa"
-              value={family.housing_type}
-              options={[
-                "",
-                "aluguel",
-                "própria",
-                "invasão/ocupação",
-                "área de risco",
-                "outro",
-              ]}
-              onChange={(v) => change("housing_type", v)}
-            />
-            {family.housing_type === "outro" &&
-              field("housing_other", "Especifique a situação da casa", {
+        <fieldset disabled={pending} className="form-body">
+          <h2 ref={heading} tabIndex={-1}>
+            {titles[step]}
+          </h2>
+          <p>Etapa {step + 1} de 3 · Campos com * são obrigatórios.</p>
+          {step === 0 && (
+            <div className="form-grid">
+              {field("responsible_name", "Nome da mãe / responsável", {
+                required: true,
+                pattern: ".*\\S.*",
+              })}
+              {field("responsible_birth_date", "Data de nascimento", {
+                type: "date",
+                max: todayISO(),
                 required: true,
               })}
-            {field("household_size", "Quantas pessoas moram na casa?", {
-              type: "number",
-              min: 1,
-              max: 100,
-              required: true,
-            })}
-            {field("working_people", "Quantas pessoas estão trabalhando?", {
-              type: "number",
-              min: 0,
-              max: Number(family.household_size),
-              required: true,
-            })}
-            <Select
-              label="Faixa de renda familiar"
-              value={family.income_range}
-              options={[
-                "",
-                "sem renda",
-                "até 1 salário mínimo",
-                "de 1 a 2 salários mínimos",
-                "de 2 a 3 salários mínimos",
-                "acima de 3 salários mínimos",
-                "não informado",
-              ]}
-              onChange={(v) => change("income_range", v)}
-            />
-            <Field
-              label="Quantidade de filhos"
-              type="number"
-              min={0}
-              max={30}
-              required
-              value={family.number_of_children}
-              onChange={(e) => countChange(e.target.value)}
-            />
-          </div>
-        )}
-        {step === 1 && (
-          <>
-            {Number(family.number_of_children) === 0 ? (
-              <p className="feedback">
-                Nenhuma criança informada. Ajuste a quantidade de filhos na
-                primeira etapa, se necessário.
-              </p>
-            ) : (
-              children
-                .slice(0, Number(family.number_of_children))
-                .map((child, index) => {
-                  const cf = (
-                    key: keyof Child,
-                    label: string,
-                    props: InputHTMLAttributes<HTMLInputElement> = {},
-                  ) => (
-                    <Field
-                      key={key}
-                      label={label}
-                      maxLength={200}
-                      value={child[key]}
-                      onChange={(e) => childChange(index, key, e.target.value)}
-                      {...props}
-                    />
-                  );
-                  const yesNo = (key: keyof Child, label: string) => (
-                    <Select
-                      label={label}
-                      value={child[key]}
-                      options={["não", "sim"]}
-                      onChange={(v) => childChange(index, key, v)}
-                    />
-                  );
-                  return (
-                    <fieldset className="child-card" key={child.id}>
-                      <legend>Criança {index + 1}</legend>
-                      <div className="form-grid">
-                        {cf("name", "Nome da criança", {
-                          required: true,
-                          pattern: ".*\\S.*",
-                        })}
-                        {cf("birth_date", "Data de nascimento da criança", {
-                          type: "date",
-                          max: todayISO(),
-                          required: true,
-                        })}
-                        <Field
-                          label="Idade atual"
-                          readOnly
-                          value={
-                            calculateAge(child.birth_date) === null
-                              ? "—"
-                              : `${calculateAge(child.birth_date)} anos`
-                          }
-                        />
-                        {yesNo(
-                          "has_special_needs",
-                          "Possui necessidade especial?",
-                        )}
-                        {child.has_special_needs === "sim" && (
-                          <>
-                            {cf("condition", "Doença / condição", {
-                              required: true,
-                            })}
-                            {cf("cid", "CID")}
-                            {yesNo("in_treatment", "Está em tratamento?")}
-                            {child.in_treatment === "sim" &&
-                              cf(
-                                "treatment_description",
-                                "Descrição do tratamento",
-                                { required: true },
-                              )}
-                          </>
-                        )}
-                        <TextArea
-                          label="Informações adicionais"
-                          value={child.additional_information}
-                          onChange={(v) =>
-                            childChange(index, "additional_information", v)
-                          }
-                        />
-                        {cf("clothing_size", "Tamanho de roupa")}
-                        {cf("shoe_size", "Número do calçado")}
-                        {yesNo("uses_diaper", "Usa fralda?")}
-                        {child.uses_diaper === "sim" &&
-                          cf("diaper_size", "Tamanho da fralda", {
+              <Field
+                label="Idade calculada"
+                readOnly
+                value={
+                  calculateAge(family.responsible_birth_date) === null
+                    ? "—"
+                    : `${calculateAge(family.responsible_birth_date)} anos`
+                }
+              />
+              {field("phone", "Telefone / celular", { type: "tel" })}
+              {field("email", "Email", { type: "email" })}
+              {field("profession", "Profissão")}
+              {field("address", "Endereço")}
+              {field("city", "Cidade")}
+              {field("cep", "CEP", {
+                pattern: "[0-9]{5}-?[0-9]{3}",
+                placeholder: "00000-000",
+                maxLength: 9,
+              })}
+              <Select
+                label="Situação da casa"
+                value={family.housing_type}
+                options={[
+                  "",
+                  "aluguel",
+                  "própria",
+                  "invasão/ocupação",
+                  "área de risco",
+                  "outro",
+                ]}
+                onChange={(v) => change("housing_type", v)}
+              />
+              {family.housing_type === "outro" &&
+                field("housing_other", "Especifique a situação da casa", {
+                  required: true,
+                })}
+              {field("household_size", "Quantas pessoas moram na casa?", {
+                type: "number",
+                min: 1,
+                max: 100,
+                required: true,
+              })}
+              {field("working_people", "Quantas pessoas estão trabalhando?", {
+                type: "number",
+                min: 0,
+                max: Number(family.household_size),
+                required: true,
+              })}
+              <Select
+                label="Faixa de renda familiar"
+                value={family.income_range}
+                options={[
+                  "",
+                  "sem renda",
+                  "até 1 salário mínimo",
+                  "de 1 a 2 salários mínimos",
+                  "de 2 a 3 salários mínimos",
+                  "acima de 3 salários mínimos",
+                  "não informado",
+                ]}
+                onChange={(v) => change("income_range", v)}
+              />
+              <Field
+                label="Quantidade de filhos"
+                type="number"
+                min={0}
+                max={30}
+                required
+                value={family.number_of_children}
+                onChange={(e) => countChange(e.target.value)}
+              />
+            </div>
+          )}
+          {step === 1 && (
+            <>
+              {Number(family.number_of_children) === 0 ? (
+                <p className="feedback">
+                  Nenhuma criança informada. Ajuste a quantidade de filhos na
+                  primeira etapa, se necessário.
+                </p>
+              ) : (
+                children
+                  .slice(0, Number(family.number_of_children))
+                  .map((child, index) => {
+                    const cf = (
+                      key: keyof Child,
+                      label: string,
+                      props: InputHTMLAttributes<HTMLInputElement> = {},
+                    ) => (
+                      <Field
+                        key={key}
+                        label={label}
+                        maxLength={200}
+                        value={child[key]}
+                        onChange={(e) =>
+                          childChange(index, key, e.target.value)
+                        }
+                        {...props}
+                      />
+                    );
+                    const yesNo = (key: keyof Child, label: string) => (
+                      <Select
+                        label={label}
+                        value={child[key]}
+                        options={["não", "sim"]}
+                        onChange={(v) => childChange(index, key, v)}
+                      />
+                    );
+                    return (
+                      <fieldset className="child-card" key={child.id}>
+                        <legend>Criança {index + 1}</legend>
+                        <div className="form-grid">
+                          {cf("name", "Nome da criança", {
+                            required: true,
+                            pattern: ".*\\S.*",
+                          })}
+                          {cf("birth_date", "Data de nascimento da criança", {
+                            type: "date",
+                            max: todayISO(),
                             required: true,
                           })}
-                        {yesNo("studies", "Estuda?")}
-                        {child.studies === "sim" && (
-                          <>
-                            {cf("school", "Nome da escola", { required: true })}
-                            {cf("school_grade", "Série / ano")}
-                            {cf(
-                              "education_level",
-                              "Nível de ensino / formação",
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </fieldset>
-                  );
-                })
-            )}
-          </>
-        )}
-        {step === 2 && (
-          <div className="form-grid">
-            <Field
-              label="Data de cadastro"
-              readOnly
-              value={timestamp(created)}
-            />
-            <Field
-              label="Última modificação"
-              readOnly
-              value={timestamp(updated)}
-            />
-            {field("activation_date", "Data de ativação da família", {
-              type: "date",
-              max: todayISO(),
-              required: family.status === "ativa",
-            })}
-            <Select
-              label="Situação"
-              value={family.status}
-              options={["ativa", "inativa", "em análise"]}
-              onChange={(v) => change("status", v)}
-            />
-            <TextArea
-              label="Comentários / observações"
-              value={family.notes}
-              onChange={(v) => change("notes", v)}
-            />
+                          <Field
+                            label="Idade atual"
+                            readOnly
+                            value={
+                              calculateAge(child.birth_date) === null
+                                ? "—"
+                                : `${calculateAge(child.birth_date)} anos`
+                            }
+                          />
+                          {yesNo(
+                            "has_special_needs",
+                            "Possui necessidade especial?",
+                          )}
+                          {child.has_special_needs === "sim" && (
+                            <>
+                              {cf("condition", "Doença / condição", {
+                                required: true,
+                              })}
+                              {cf("cid", "CID")}
+                              {yesNo("in_treatment", "Está em tratamento?")}
+                              {child.in_treatment === "sim" &&
+                                cf(
+                                  "treatment_description",
+                                  "Descrição do tratamento",
+                                  { required: true },
+                                )}
+                            </>
+                          )}
+                          <TextArea
+                            label="Informações adicionais"
+                            value={child.additional_information}
+                            onChange={(v) =>
+                              childChange(index, "additional_information", v)
+                            }
+                          />
+                          {cf("clothing_size", "Tamanho de roupa")}
+                          {cf("shoe_size", "Número do calçado")}
+                          {yesNo("uses_diaper", "Usa fralda?")}
+                          {child.uses_diaper === "sim" &&
+                            cf("diaper_size", "Tamanho da fralda", {
+                              required: true,
+                            })}
+                          {yesNo("studies", "Estuda?")}
+                          {child.studies === "sim" && (
+                            <>
+                              {cf("school", "Nome da escola", {
+                                required: true,
+                              })}
+                              {cf("school_grade", "Série / ano")}
+                              {cf(
+                                "education_level",
+                                "Nível de ensino / formação",
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </fieldset>
+                    );
+                  })
+              )}
+            </>
+          )}
+          {step === 2 && (
+            <div className="form-grid">
+              <Field
+                label="Data de cadastro"
+                readOnly
+                value={timestamp(created)}
+              />
+              <Field
+                label="Última modificação"
+                readOnly
+                value={timestamp(updated)}
+              />
+              {field("activation_date", "Data de ativação da família", {
+                type: "date",
+                max: todayISO(),
+                required: family.status === "ativa",
+              })}
+              <Select
+                label="Situação"
+                value={family.status}
+                options={["ativa", "inativa", "em análise"]}
+                onChange={(v) => change("status", v)}
+              />
+              <TextArea
+                label="Comentários / observações"
+                value={family.notes}
+                onChange={(v) => change("notes", v)}
+              />
+            </div>
+          )}
+          {message && (
+            <div role="status" className="feedback">
+              {message}
+            </div>
+          )}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate(Math.max(0, step - 1))}
+              disabled={step === 0 || pending}
+            >
+              Voltar
+            </button>
+            <button type="submit" className="button" disabled={pending}>
+              {pending
+                ? "Salvando…"
+                : step === 2
+                  ? saveAction
+                    ? "Salvar cadastro"
+                    : "Concluir prévia"
+                  : "Próxima etapa →"}
+            </button>
           </div>
-        )}
-        {message && (
-          <div role="status" className="feedback">
-            {message}
-          </div>
-        )}
-        <div className="form-actions">
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => navigate(Math.max(0, step - 1))}
-            disabled={step === 0}
-          >
-            Voltar
-          </button>
-          <button type="submit" className="button">
-            {step === 2 ? "Concluir prévia" : "Próxima etapa →"}
-          </button>
-        </div>
+        </fieldset>
       </form>
     </>
   );

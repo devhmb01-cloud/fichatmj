@@ -1,5 +1,8 @@
 import { FamilyForm } from "@/components/family-form";
-export default function NewFamily() {
+import { requireTeam } from "@/lib/auth";
+import { registerFamily } from "./actions";
+export default async function NewFamily() {
+  const session = await requireTeam(true);
   return (
     <>
       <header>
@@ -9,7 +12,7 @@ export default function NewFamily() {
           <p>Preencha as informações da família, uma etapa de cada vez.</p>
         </div>
       </header>
-      <FamilyForm />
+      <FamilyForm saveAction={session ? registerFamily : undefined} />
     </>
   );
 }

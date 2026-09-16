@@ -1,13 +1,20 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "@/app/login/actions";
 const links = [
   ["/", "Dashboard", "◈"],
   ["/familias", "Famílias", "◎"],
   ["/novo", "Novo cadastro", "＋"],
   ["/relatorios", "Relatórios", "▤"],
 ];
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  connected = false,
+}: {
+  children: React.ReactNode;
+  connected?: boolean;
+}) {
   const path = usePathname();
   return (
     <div className="shell">
@@ -27,7 +34,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href={href}
               key={href}
-              aria-current={path === href ? "page" : undefined}
+              aria-current={
+                path === href ||
+                (href === "/familias" && path.startsWith("/familias/"))
+                  ? "page"
+                  : undefined
+              }
             >
               <span aria-hidden>{icon}</span>
               {label}
@@ -35,19 +47,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="aside-bottom">
-          ● Base inicial<small>Mais organização. Mais cuidado.</small>
+          ● {connected ? "Espaço da equipe" : "Demonstração"}
+          <small>Mais organização. Mais cuidado.</small>
         </div>
       </aside>
       <div className="workspace">
         <div className="topbar">
           <span>Juntos, acompanhamos melhor.</span>
-          <span className="badge">PRÉVIA LOCAL</span>
+          <span className="badge">
+            {connected ? "ACESSO RESTRITO" : "PRÉVIA LOCAL"}
+          </span>
+          {connected && path !== "/login" && (
+            <form action={signOut}>
+              <button className="button secondary">Sair</button>
+            </form>
+          )}
         </div>
         <main id="conteudo">
-          <div className="notice">
-            Demonstração · Use apenas dados fictícios. O formulário não salva
-            informações.
-          </div>
+          {!connected && (
+            <div className="notice">
+              Demonstração · Use apenas dados fictícios. O formulário não salva
+              informações.
+            </div>
+          )}
           {children}
         </main>
         <footer>Ficha TMJ · Construindo uma rede de cuidado</footer>
