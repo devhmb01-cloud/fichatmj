@@ -1,6 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loginErrorMessage, safeLoginDiagnostic } from "@/lib/login-error";
 
 export async function signIn(_previous: { error: string }, form: FormData) {
   const email = form.get("email");
@@ -21,7 +22,11 @@ export async function signIn(_previous: { error: string }, form: FormData) {
     email: email.trim(),
     password,
   });
-  if (error || !data.user || data.user.is_anonymous)
+  if (error) {
+    console.warn("[auth.signIn] failed", safeLoginDiagnostic(error));
+    return { error: loginErrorMessage(error) };
+  }
+  if (!data.user || data.user.is_anonymous)
     return {
       error:
         "Não foi possível entrar. Verifique os dados ou tente novamente mais tarde.",
@@ -36,6 +41,9 @@ export async function signIn(_previous: { error: string }, form: FormData) {
     !profile ||
     !["admin", "staff", "viewer"].includes(profile.role)
   ) {
+    console.warn("[auth.profile] denied", {
+      code: profileError?.code ?? "profile_not_authorized",
+    });
     await client.auth.signOut({ scope: "local" });
     return {
       error: "Acesso não autorizado. Solicite a liberação à organização.",

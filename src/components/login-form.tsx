@@ -1,8 +1,9 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { signIn } from "@/app/login/actions";
 export function LoginForm() {
   const [state, action, pending] = useActionState(signIn, { error: "" });
+  const [email, setEmail] = useState("");
   return (
     <form action={action} className="card login-card">
       <h2>Entrar na sua conta</h2>
@@ -14,6 +15,10 @@ export function LoginForm() {
             name="email"
             type="email"
             autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
             maxLength={254}
           />

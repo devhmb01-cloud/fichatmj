@@ -11,7 +11,8 @@
     "test:db": "node scripts/test-db.mjs",
     "format": "prettier --write src scripts README.md package.json",
     "test:date": "node scripts/test-date.mjs",
-    "test": "npm run test:date && npm run test:registration && npm run test:form && npm run test:edit && npm run test:db",
+    "test": "npm run test:login && npm run test:date && npm run test:registration && npm run test:form && npm run test:edit && npm run test:db",
+    "test:login": "tsx scripts/test-login-error.mjs",
     "test:edit": "tsx scripts/test-edit-form.mjs",
     "test:registration": "tsx scripts/test-registration.mjs",
     "test:form": "tsx scripts/test-form.mjs"
