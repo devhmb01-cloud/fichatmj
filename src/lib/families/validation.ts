@@ -30,7 +30,7 @@ const integer = (label: string, min: number, max: number) =>
         .max(max, `${label}: máximo ${max}.`),
     );
 const yesNo = z.enum(["sim", "não"]).transform((v) => v === "sim");
-const familySchema = z
+export const familySchema = z
   .object({
     responsible_name: required("Nome do responsável"),
     responsible_birth_date: birthDate("Nascimento do responsável"),
@@ -104,7 +104,7 @@ const familySchema = z
     ...v,
     housing_other: v.housing_type === "outro" ? v.housing_other : null,
   }));
-const childSchema = z
+export const childSchema = z
   .object({
     name: required("Nome da criança"),
     birth_date: birthDate("Nascimento da criança"),

@@ -200,6 +200,208 @@ assert.equal(
 console.log(
   "PASS: transactional registration, retry idempotency, child-count validation, rollback on invalid child/note and RPC access controls.",
 );
+// Editing is transactional, preserves identities and guards concurrent writers.
+const editingFamily = {
+  ...familyPayload,
+  responsible_name: "EDITED MOTHER",
+  household_size: 3,
+  responsible_residence_status: "mora na casa",
+  responsible_work_status: "trabalhando",
+  responsible_situation_notes: "Started work",
+  responsible_health_notes: "Follow-up",
+  responsible_treatment_notes: "Treatment",
+  responsible_education_notes: "Studying",
+};
+const childId = (
+  await db.query(
+    `select id from public.children where family_id='${registered}'`,
+  )
+).rows[0].id;
+const existingChild = {
+  ...childPayload,
+  id: childId,
+  profession: null,
+  residence_status: "mora na casa",
+  work_status: "não se aplica",
+  situation_notes: "Changed school",
+};
+const otherMember = {
+  ...existingChild,
+  id: "00000000-0000-4000-8000-000000000020",
+  name: "TEST FATHER",
+  birth_date: "1990-01-01",
+  relationship: "Pai",
+};
+const version = async () =>
+  (
+    await db.query(
+      `select updated_at::text as version from public.families where id='${registered}'`,
+    )
+  ).rows[0].version;
+const edit = (
+  stamp,
+  children = [existingChild],
+  members = [otherMember],
+  f = editingFamily,
+  note = "EDIT NOTE",
+) =>
+  `select public.edit_family('${registered}','${stamp}',${sqlLiteral(f)},${sqlLiteral(children)},${sqlLiteral(members)},'${note}')`;
+const originalVersion = await version();
+await denied("anon", "", edit(originalVersion));
+await denied("authenticated", viewer, edit(originalVersion));
+await denied("authenticated", outsider, edit(originalVersion));
+await as("authenticated", staff, edit(originalVersion));
+assert.equal(
+  (
+    await db.query(
+      `select responsible_name from public.families where id='${registered}'`,
+    )
+  ).rows[0].responsible_name,
+  "EDITED MOTHER",
+);
+assert.equal(
+  (
+    await db.query(
+      `select id from public.children where family_id='${registered}'`,
+    )
+  ).rows[0].id,
+  childId,
+);
+assert.equal(
+  (await as("authenticated", viewer, `select * from public.family_members`))
+    .rows.length,
+  1,
+);
+await denied("anon", "", "select * from public.family_members");
+assert.equal(
+  (await as("authenticated", outsider, "select * from public.family_members"))
+    .rows.length,
+  0,
+);
+assert.equal(
+  (
+    await as(
+      "authenticated",
+      viewer,
+      "update public.family_members set name='BAD' returning id",
+    )
+  ).rows.length,
+  0,
+);
+await denied("authenticated", staff, "delete from public.family_members");
+await assert.rejects(
+  () => as("authenticated", staff, edit(originalVersion)),
+  /Family changed/,
+);
+const currentVersion = await version();
+await assert.rejects(
+  () =>
+    as(
+      "authenticated",
+      staff,
+      edit(currentVersion, [], [otherMember], {
+        ...editingFamily,
+        number_of_children: 0,
+      }),
+    ),
+  /retained/,
+);
+await assert.rejects(
+  () => as("authenticated", staff, edit(currentVersion, [existingChild], [])),
+  /retained/,
+);
+await assert.rejects(
+  () =>
+    as(
+      "authenticated",
+      staff,
+      edit(currentVersion, [existingChild, existingChild], [otherMember], {
+        ...editingFamily,
+        number_of_children: 2,
+      }),
+    ),
+  /duplicate/,
+);
+await assert.rejects(
+  () =>
+    as(
+      "authenticated",
+      staff,
+      edit(currentVersion, [existingChild], [{ ...otherMember, name: "" }], {
+        ...editingFamily,
+        responsible_name: "MUST ROLLBACK",
+      }),
+    ),
+  /check constraint/,
+);
+assert.equal(await version(), currentVersion);
+assert.equal(
+  (
+    await db.query(
+      `select responsible_name from public.families where id='${registered}'`,
+    )
+  ).rows[0].responsible_name,
+  "EDITED MOTHER",
+);
+// An ID from another family must not be moved or overwritten.
+const foreignChild = (
+  await db.query(`select id from public.children where family_id='${family}'`)
+).rows[0].id;
+await assert.rejects(
+  () =>
+    as(
+      "authenticated",
+      staff,
+      edit(
+        currentVersion,
+        [existingChild, { ...existingChild, id: foreignChild }],
+        [otherMember],
+        { ...editingFamily, number_of_children: 2 },
+      ),
+    ),
+  /another family/,
+);
+const newChild = {
+  ...existingChild,
+  id: "00000000-0000-4000-8000-000000000021",
+  name: "NEW CHILD",
+};
+await as(
+  "authenticated",
+  staff,
+  edit(
+    currentVersion,
+    [{ ...existingChild, residence_status: "não mora na casa" }, newChild],
+    [{ ...otherMember, residence_status: "falecido" }],
+    { ...editingFamily, number_of_children: 2 },
+  ),
+);
+assert.equal(
+  (
+    await db.query(
+      `select number_of_children from public.families where id='${registered}'`,
+    )
+  ).rows[0].number_of_children,
+  2,
+);
+assert.equal(
+  (
+    await db.query(
+      `select residence_status from public.family_members where id='${otherMember.id}'`,
+    )
+  ).rows[0].residence_status,
+  "falecido",
+);
+const beforeDirectChange = await version();
+await as(
+  "authenticated",
+  staff,
+  `update public.children set school='Changed directly' where id='${childId}'`,
+);
+assert.notEqual(await version(), beforeDirectChange);
+console.log(
+  "PASS: family editing, mother changes, member addition/status, retained IDs, no omission, no cross-family moves, rollback, concurrency and RLS.",
+);
 await db.close();
 console.log(
   "PASS: migration, anonymous denial, unprovisioned denial, team permissions, role escalation denial, note authorship, constraints and timestamps.",

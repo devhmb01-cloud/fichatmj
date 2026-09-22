@@ -36,22 +36,34 @@ export default async function FamilyDetail({
   const session = await requireTeam();
   const { id } = await params;
   if (!session || !z.uuid().safeParse(id).success) notFound();
-  const [familyResult, childResult, noteResult] = await Promise.all([
-    session.client.from("families").select("*").eq("id", id).maybeSingle(),
-    session.client
-      .from("children")
-      .select("*")
-      .eq("family_id", id)
-      .order("created_at")
-      .order("id"),
-    session.client
-      .from("family_notes")
-      .select("id, content, created_at")
-      .eq("family_id", id)
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ]);
-  if (familyResult.error || childResult.error || noteResult.error)
+  const [familyResult, childResult, noteResult, memberResult] =
+    await Promise.all([
+      session.client.from("families").select("*").eq("id", id).maybeSingle(),
+      session.client
+        .from("children")
+        .select("*")
+        .eq("family_id", id)
+        .order("created_at")
+        .order("id"),
+      session.client
+        .from("family_notes")
+        .select("id, content, created_at")
+        .eq("family_id", id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      session.client
+        .from("family_members")
+        .select("*")
+        .eq("family_id", id)
+        .order("created_at")
+        .order("id"),
+    ]);
+  if (
+    familyResult.error ||
+    childResult.error ||
+    noteResult.error ||
+    memberResult.error
+  )
     throw new Error("Não foi possível carregar a ficha.");
   const family = familyResult.data;
   if (!family) notFound();
@@ -63,6 +75,11 @@ export default async function FamilyDetail({
           <h1>{family.responsible_name}</h1>
           <p>{family.family_code}</p>
         </div>
+        {session.canWrite && (
+          <Link className="button" href={`/familias/${id}/editar`}>
+            Editar família
+          </Link>
+        )}
         <Link className="button secondary" href="/familias">
           Voltar às famílias
         </Link>
@@ -77,6 +94,12 @@ export default async function FamilyDetail({
             ["phone", "Telefone"],
             ["email", "Email"],
             ["profession", "Profissão"],
+            ["responsible_work_status", "Situação de trabalho"],
+            ["responsible_residence_status", "Situação no domicílio"],
+            ["responsible_situation_notes", "Situação individual / mudanças"],
+            ["responsible_health_notes", "Saúde / condições"],
+            ["responsible_treatment_notes", "Tratamentos"],
+            ["responsible_education_notes", "Escola / formação"],
             ["address", "Endereço"],
             ["city", "Cidade"],
             ["cep", "CEP"],
@@ -103,14 +126,25 @@ export default async function FamilyDetail({
         </p>
       </section>
       <section className="card">
-        <h2>Crianças</h2>
+        <h2>Filhos / filhas e outros membros</h2>
         {!childResult.data?.length && <p>Nenhuma criança cadastrada.</p>}
-        {childResult.data?.map((child) => (
+        {[
+          ...(childResult.data ?? []).map((child) => ({
+            ...child,
+            relationship: "Filho(a)",
+          })),
+          ...(memberResult.data ?? []),
+        ].map((child) => (
           <article className="child-card" key={child.id}>
             <h3>{child.name}</h3>
             <Details
               row={{ ...child, age: calculateAge(child.birth_date) }}
               fields={[
+                ["relationship", "Vínculo com a família"],
+                ["residence_status", "Situação no domicílio"],
+                ["work_status", "Situação de trabalho"],
+                ["profession", "Profissão"],
+                ["situation_notes", "Situação individual / mudanças"],
                 ["birth_date", "Nascimento"],
                 ["age", "Idade"],
                 ["clothing_size", "Roupa"],
