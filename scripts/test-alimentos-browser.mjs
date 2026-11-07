@@ -14,7 +14,7 @@ try {
   await page.screenshot({path:'artifacts/alimentos-painel.png',fullPage:true});
   await page.getByRole('link',{name:'Estoque',exact:true}).click();
   await page.getByRole('heading',{name:'Estoque de alimentos'}).waitFor();
-  await page.getByLabel('Alimento',{exact:true}).selectOption('f-leite');
+  await page.locator('.food-form select').first().selectOption('f-leite');
   await page.getByLabel('Quantidade de embalagens').fill('80');
   await page.getByRole('button',{name:'Adicionar ao estoque'}).click();
   await page.getByText('Entrada registrada (simulação)').waitFor();
