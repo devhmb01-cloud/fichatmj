@@ -16,17 +16,24 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 mkdirSync("artifacts", { recursive: true });
+async function captureMobile(name) {
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    window.scrollTo(0, 0);
+  });
+  await page.screenshot({ path: "artifacts/" + name + ".png", fullPage: true });
+}
 try {
   await page.goto(baseUrl + "/bazar", { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Bazar", level: 1 }).waitFor();
-  await page.screenshot({ path: "artifacts/bazar-mobile-painel.png", fullPage: true });
+  await captureMobile("bazar-mobile-painel");
 
   await page.getByRole("link", { name: "Estoque", exact: true }).click();
   await page.getByRole("heading", { name: "Estoque por quantidade" }).waitFor();
   await page.locator("input[type=number]").first().fill("2");
   await page.getByRole("button", { name: "Adicionar lote fictício" }).click();
   assert.match(await page.locator(".bazar-stock-row").nth(1).innerText(), /60 peças/);
-  await page.screenshot({ path: "artifacts/bazar-mobile-estoque.png", fullPage: true });
+  await captureMobile("bazar-mobile-estoque");
 
   await page.getByRole("link", { name: "Vendas", exact: true }).click();
   await page.getByRole("heading", { name: "Venda rápida" }).waitFor();
@@ -36,7 +43,7 @@ try {
   await rows.nth(2).locator("button").nth(1).click();
   await page.getByRole("button", { name: "Confirmar venda fictícia" }).click();
   assert.match(await page.locator(".bazar-feedback-ok").innerText(), /3 peça/);
-  await page.screenshot({ path: "artifacts/bazar-mobile-vendas.png", fullPage: true });
+  await captureMobile("bazar-mobile-vendas");
 
   await page.getByRole("link", { name: "Painel", exact: true }).click();
   const metrics = await page.locator(".bazar-metric").allInnerTexts();

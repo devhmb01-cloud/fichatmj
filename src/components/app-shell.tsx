@@ -17,6 +17,10 @@ export function AppShell({
   connected?: boolean;
 }) {
   const path = usePathname();
+  const isBazar = path === "/bazar" || path.startsWith("/bazar/");
+  const visibleLinks = isBazar
+    ? links.filter(([href]) => href === "/" || href === "/bazar")
+    : links;
   return (
     <div className="shell">
       <a className="skip" href="#conteudo">
@@ -26,12 +30,12 @@ export function AppShell({
         <Link className="brand" href="/">
           <b>tmj</b>
           <span>
-            Ficha TMJ<small>GESTÃO DE FAMÍLIAS</small>
+            Ficha TMJ<small>{isBazar ? "GESTÃO COMERCIAL" : "GESTÃO DE FAMÍLIAS"}</small>
           </span>
         </Link>
-        <p className="nav-label">ESPAÇO DE ACOLHIMENTO</p>
+        <p className="nav-label">{isBazar ? "GESTÃO DO BAZAR" : "ESPAÇO DE ACOLHIMENTO"}</p>
         <nav aria-label="Navegação principal">
-          {links.map(([href, label, icon]) => (
+          {visibleLinks.map(([href, label, icon]) => (
             <Link
               href={href}
               key={href}
