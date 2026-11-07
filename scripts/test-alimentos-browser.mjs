@@ -25,7 +25,7 @@ try {
   await page.screenshot({path:'artifacts/alimentos-cesta.png',fullPage:true});
   await page.getByRole('link',{name:'Entregas'}).click();
   await page.getByRole('heading',{name:'Distribuição de cestas'}).waitFor();
-  await page.getByLabel('Família',{exact:true}).selectOption('sim-001');
+  await page.locator('.food-form select').first().selectOption('sim-001');
   await page.getByLabel(/Confirmo que a cesta/).check();
   await page.getByRole('button',{name:'Confirmar entrega e baixar estoque'}).click();
   await page.getByText('Cesta entregue e estoque atualizado (simulação)').waitFor();
