@@ -46,6 +46,8 @@ try {
   await captureMobile("bazar-mobile-vendas");
 
   await page.getByRole("link", { name: "Painel", exact: true }).click();
+  await page.getByRole("heading", { name: "Visão geral" }).waitFor();
+  await page.locator(".bazar-metric").first().waitFor();
   const metrics = await page.locator(".bazar-metric").allInnerTexts();
   assert.match(metrics[0], /168/);
   assert.match(metrics[1], /25,00/);
