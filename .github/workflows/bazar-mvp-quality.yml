@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --experimental-strip-types --test scripts/test-bazar.mjs
+      - run: node scripts/test-bazar-persistence.mjs
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
