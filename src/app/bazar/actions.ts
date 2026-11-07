@@ -18,7 +18,7 @@ function ensureEnabled() {
   }
 }
 
-export async function readBazarState(client: Client): Promise<BazarServerState> {
+async function readBazarState(client: Client): Promise<BazarServerState> {
   ensureEnabled();
   const [inventory, history] = await Promise.all([
     client.from("bazar_inventory").select("price_cents,quantity").order("price_cents"),
@@ -46,6 +46,15 @@ export async function readBazarState(client: Client): Promise<BazarServerState> 
         ({ price: item.price_cents / 100 as typeof BAZAR_PRICES[number], quantity: item.quantity })) : [],
   }));
   return { stock, sales };
+}
+
+export async function getBazarState(): Promise<BazarServerState> {
+  ensureEnabled();
+  const session = await requireTeam();
+  if (!session || session.mode !== "connected") {
+    throw new Error("Acesse com sua conta da equipe para consultar o Bazar.");
+  }
+  return readBazarState(session.client);
 }
 
 const requestId = z.string().uuid();
