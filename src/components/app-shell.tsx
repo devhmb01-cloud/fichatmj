@@ -7,6 +7,7 @@ const links = [
   ["/familias", "Famílias", "◎"],
   ["/novo", "Novo cadastro", "＋"],
   ["/relatorios", "Relatórios", "▤"],
+  ["/bazar", "Bazar · simulação", "▣"],
 ];
 export function AppShell({
   children,
@@ -36,7 +37,8 @@ export function AppShell({
               key={href}
               aria-current={
                 path === href ||
-                (href === "/familias" && path.startsWith("/familias/"))
+                (href === "/familias" && path.startsWith("/familias/")) ||
+                (href === "/bazar" && path.startsWith("/bazar/"))
                   ? "page"
                   : undefined
               }

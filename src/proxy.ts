@@ -52,6 +52,7 @@ export const config = {
     "/familias/:path*",
     "/novo",
     "/relatorios",
+    "/bazar/:path*",
     "/login",
     "/acesso-negado",
   ],

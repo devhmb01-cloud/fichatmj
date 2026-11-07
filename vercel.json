@@ -3,5 +3,12 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
-  "regions": ["gru1"]
+  "regions": [
+    "gru1"
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "feat/bazar-mvp-demo-20261107": false
+    }
+  }
 }
