@@ -1,28 +1,33 @@
-# Integração Vercel + Supabase — Bazar (ambiente isolado)
+# Integração Vercel + Supabase — Ficha TMJ / Bazar
 
-Status: **planejamento validado, conexões da aplicação ainda NÃO ativadas**.
-Data: 2026-11-07. Não utilizar dados pessoais reais neste estágio.
+**Status em 2026-11-07:** contas Devhmb corretamente conectadas; Vercel original identificado; Supabase hospedado INACTIVE; módulo do bazar ainda em demonstração, sem persistência. **Nenhuma conexão nova foi implantada.**
 
-## Diagnóstico somente em leitura
+## Ambiente confirmado (somente leitura)
 
-- O conector Supabase **devhmb** está disponível. O único projeto listado nessa conta está **INACTIVE**. Não foi reativado e não foi usada nenhuma tabela de produção.
-- A conexão Vercel disponível é da conta/time **GUKH7** em plano Hobby. O projeto com nome **fichatmj** ali está sem domínio, implantação ou ligação Git registrada e sem variáveis de ambiente. O repositório `devhmb01-cloud/fichatmj` não apareceu entre os repositórios acessíveis à conexão Vercel.
-- O repositório GitHub **devhmb01-cloud/fichatmj** possui branch de teste `feat/bazar-mvp-demo-20261107` com o MVP do Bazar em memória, sem gravações no Supabase.
-- O arquivo `vercel.json` dessa branch desabilita seu deployment automático. Não remover essa restrição sem autorização expressa.
+- GitHub: `devhmb01-cloud/fichatmj`, branch de testes `feat/bazar-mvp-demo-20261107`. A branch `main` permanece como fonte da produção.
+- Vercel: equipe **dev-hmb** (plano Hobby), projeto **fichatmj**, ID `prj_ERV1KDII1TMLAkmxeim4nfhfHBeH`, conectado ao GitHub acima.
+- Implantação Vercel mais recente: **READY / production**, commit `bd146e79a616ce64fafc62088962eecc93dec73a` da `main`. Domínio do site existente: `fichatmj-wine.vercel.app`. O campo de projeto `live` retornou `false`, portanto não interpretar READY como comprovação de disponibilidade do site.
+- Vercel possui, exclusivamente no alvo `production`, as variáveis `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. **Os valores não foram descriptografados, expostos nem alterados.** Não foram encontradas implantações da branch de testes.
+- Supabase: conexão **devhmb**, projeto `zcjiupytkgthaxitrttg`, região São Paulo (`sa-east-1`), estado **INACTIVE**. A inspeção das tabelas retornou “Database is possibly not accessible at the moment”. Não foi feita nenhuma alteração ou tentativa de recuperação. Não há branches remotas do Supabase.
 
-## Próximas ações, antes de qualquer conexão remota
+## Impedimento atual
 
-1. **Confirmar o proprietário da implantação original**: verificar no painel Vercel qual time controla a aplicação existente, seu projeto/dominio e vínculo Git. Não criar outro projeto de mesmo nome nem usar `create_git_project`: essa ação pode iniciar deploy automático.
-2. **Confirmar o papel do projeto Supabase inativo**: ele pode conter os dados das famílias. Não reativar, aplicar migrações, inserir dados, nem vinculá-lo como staging sem avaliação explícita.
-3. **Ambiente de teste gratuito e isolado**: usar Supabase local com dados sintéticos (preferível); projeto remoto de testes apenas se houver vaga no plano gratuito, sem cobrança, e autorização para a criação.
-4. **Separar variáveis de ambiente**: quando houver banco de teste, configurar URL e chave pública/publishable apenas no destino de desenvolvimento/preview autorizado, nunca registrar chaves em Git. A `service_role` não deve ir para o navegador.
-5. **Modelar e testar controle do Bazar**: entrada por quantidade e preço, reprecificação como transferência, venda atômica e bloqueio de estoque negativo. Tabelas comerciais com RLS e autorização específica, sem conceder a todos os operadores acesso às famílias.
-6. **Conferir gates**: lint, types, testes de estoque/venda, testes existentes das famílias, build e smoke mobile. Primeiro testar com Supabase local; não alterar a instância real da ONG.
-7. **Publicação**: depende de nova autorização expressa. Vincular um projeto da Vercel ao Git pode provocar deploy; não fazer isso por consequência implícita deste documento.
+Não é possível validar o acesso do Bazar ao Supabase hospedado enquanto esse banco estiver inativo. O status **INACTIVE** pode ocorrer por pausa do plano gratuito; não há evidência suficiente para afirmar que este seja o motivo, nem que as variáveis Vercel apontem para esse projeto.
 
-## Requisitos de segurança
+A documentação oficial explica que um projeto gratuito pausado pode ser retomado no painel, dentro das condições de restauração vigentes. Confirmar **custo adicional R$ 0** antes de qualquer recuperação ou criação de recurso. Referência: https://supabase.com/docs/guides/platform/free-project-pausing
 
-- Manter módulo de famílias e políticas existentes intactos.
-- Registros de compradores, se implementados, serão opcionais e não poderão reutilizar contatos das famílias; exigir consentimento granular para mensagens.
-- Não contratar recursos pagos, não executar deploy/Preview, não fazer merge nem migrar banco real.
-- Em caso de dúvida sobre Vercel ou Supabase de produção, interromper alterações remotas.
+## Procedimento seguro recomendado
+
+1. No painel Supabase Devhmb, verificar se o projeto `zcjiupytkgthaxitrttg` possui a ação `Resume project`, conferir plano e condições. Restaurar somente depois de decisão explícita da organização, preservando possíveis registros de famílias.
+2. Confirmar **sem expor os segredos** que URL e chave pública configuradas na Vercel pertencem ao projeto correto. Jamais colocar `service_role` ou segredo em `NEXT_PUBLIC_*`.
+3. Para desenvolver o Bazar, usar **PGlite/Supabase local com dados sintéticos** e novas estruturas isoladas: saldo por preço, movimentos, vendas, itens e auditoria de reprecificações. Não reutilizar a tabela de famílias.
+4. Proteger os novos dados por regras RLS e permissões próprias do Bazar, com testes de acesso indevido e garantia de que o registro de vendas é atômico/idempotente.
+5. Quando existir um ambiente de testes remoto gratuito autorizado, configurar valores **somente na Preview/Development específica**, sem alterar as variáveis Production e sem disparar deploy involuntário.
+6. Repetir os checks: lint, TypeScript, testes antigos de famílias, testes de bazar, build e teste mobile. Rever aplicação antes de qualquer publicação.
+
+## Limites de operação
+
+- **Não executar** deploy/Preview, merge, alteração de banco real, restauração do Supabase, migrações remotas ou uso de recursos pagos nesta fase.
+- Não usar dados reais de famílias ou clientes nos testes.
+- Preservar a `main`, o projeto Vercel em produção e as configurações existentes.
+- O `vercel.json` da branch de teste contém bloqueio de implantação automática nessa branch; não remover sem autorização.
