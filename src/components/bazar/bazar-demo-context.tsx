@@ -38,17 +38,23 @@ export function BazarDemoProvider({
   const [sales, setSales] = useState<BazarSale[]>(initialState?.sales ?? []);
   const [pending, setPending] = useState(false);
   const busyRef = useRef(false);
+  // Retain the same request ID when retrying an uncertain network failure.
+  const retryRef = useRef<{ key: string; id: string } | null>(null);
 
   async function run(
-    call: () => Promise<import("@/app/bazar/actions").BazarActionResponse>,
+    key: string,
+    call: (id: string) => Promise<import("@/app/bazar/actions").BazarActionResponse>,
     message: string
   ): Promise<Outcome> {
     if (busyRef.current) return { ok: false, message: "Uma operação já está em andamento." };
     busyRef.current = true;
     setPending(true);
+    const id = retryRef.current?.key === key ? retryRef.current.id : crypto.randomUUID();
+    retryRef.current = { key, id };
     try {
-      const result = await call();
+      const result = await call(id);
       if (!result.ok) return { ok: false, message: result.message };
+      retryRef.current = null;
       setStock(result.state.stock);
       setSales(result.state.sales);
       return { ok: true, message: result.duplicate ? "Operação já registrada anteriormente." : message };
@@ -62,8 +68,8 @@ export function BazarDemoProvider({
 
   async function addPieces(price: BazarPrice, quantity: number): Promise<Outcome> {
     if (persistent) {
-      const id = crypto.randomUUID();
-      return run(() => addBazarPieces({ price, quantity, requestId: id }),
+      return run("entry:" + price + ":" + quantity,
+        id => addBazarPieces({ price, quantity, requestId: id }),
         String(quantity) + " peça(s) adicionada(s) ao estoque.");
     }
     try {
@@ -77,8 +83,8 @@ export function BazarDemoProvider({
 
   async function repricePieces(from: BazarPrice, to: BazarPrice, quantity: number): Promise<Outcome> {
     if (persistent) {
-      const id = crypto.randomUUID();
-      return run(() => repriceBazarPieces({ from, to, quantity, requestId: id }),
+      return run("reprice:" + from + ":" + to + ":" + quantity,
+        id => repriceBazarPieces({ from, to, quantity, requestId: id }),
         String(quantity) + " peça(s) reprecificada(s).");
     }
     try {
@@ -95,8 +101,8 @@ export function BazarDemoProvider({
       const lines = Object.entries(cart).map(([price, quantity]) => ({
         price: Number(price), quantity
       }));
-      const id = crypto.randomUUID();
-      return run(() => registerBazarSale({ lines, requestId: id }), "Venda registrada no Bazar.");
+      return run("sale:" + JSON.stringify(lines),
+        id => registerBazarSale({ lines, requestId: id }), "Venda registrada no Bazar.");
     }
     try {
       const result = checkoutDemoSale(stock, cart);
