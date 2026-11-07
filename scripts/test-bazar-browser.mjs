@@ -23,7 +23,7 @@ try {
 
   await page.getByRole("link", { name: "Estoque", exact: true }).click();
   await page.getByRole("heading", { name: "Estoque por quantidade" }).waitFor();
-  await page.getByLabel("Quantidade").first().fill("2");
+  await page.locator("input[type=number]").first().fill("2");
   await page.getByRole("button", { name: "Adicionar lote fictício" }).click();
   assert.match(await page.locator(".bazar-stock-row").nth(1).innerText(), /60 peças/);
   await page.screenshot({ path: "artifacts/bazar-mobile-estoque.png", fullPage: true });
