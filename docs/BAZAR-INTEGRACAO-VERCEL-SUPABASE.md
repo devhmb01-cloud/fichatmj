@@ -1,33 +1,45 @@
-# Integração Vercel + Supabase — Ficha TMJ / Bazar
+# Ficha TMJ — integração funcional do Bazar (revisão de segurança)
 
-**Status em 2026-11-07:** contas Devhmb corretamente conectadas; Vercel original identificado; Supabase hospedado INACTIVE; módulo do bazar ainda em demonstração, sem persistência. **Nenhuma conexão nova foi implantada.**
+Data: 2026-11-07
+Status: **código de persistência implementado e testado em banco isolado; não ativado no site publicado**.
 
-## Ambiente confirmado (somente leitura)
+## Ambiente identificado
 
-- GitHub: `devhmb01-cloud/fichatmj`, branch de testes `feat/bazar-mvp-demo-20261107`. A branch `main` permanece como fonte da produção.
-- Vercel: equipe **dev-hmb** (plano Hobby), projeto **fichatmj**, ID `prj_ERV1KDII1TMLAkmxeim4nfhfHBeH`, conectado ao GitHub acima.
-- Implantação Vercel mais recente: **READY / production**, commit `bd146e79a616ce64fafc62088962eecc93dec73a` da `main`. Domínio do site existente: `fichatmj-wine.vercel.app`. O campo de projeto `live` retornou `false`, portanto não interpretar READY como comprovação de disponibilidade do site.
-- Vercel possui, exclusivamente no alvo `production`, as variáveis `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. **Os valores não foram descriptografados, expostos nem alterados.** Não foram encontradas implantações da branch de testes.
-- Supabase: conexão **devhmb**, projeto `zcjiupytkgthaxitrttg`, região São Paulo (`sa-east-1`), estado **INACTIVE**. A inspeção das tabelas retornou “Database is possibly not accessible at the moment”. Não foi feita nenhuma alteração ou tentativa de recuperação. Não há branches remotas do Supabase.
+- **GitHub:** devhmb01-cloud/fichatmj; branch isolada feat/bazar-mvp-demo-20261107.
+- **Vercel Devhmb:** projeto fichatmj, equipe dev-hmb, plano Hobby, produção ligada à branch main. Site: https://fichatmj-wine.vercel.app
+- **Supabase Devhmb:** zcjiupytkgthaxitrttg, organização no plano Free, status ACTIVE_HEALTHY após a restauração anterior.
+- **Produção Vercel:** variáveis públicas do Supabase registradas com conteúdo protegido; a correspondência de valores não foi comprovada, não foram copiadas chaves. Nenhuma variável de integração foi alterada.
+- **Deploys:** não há deploy do branch Bazar; o vercel.json mantém git.deploymentEnabled[feat/bazar-mvp-demo-20261107] = false.
 
-## Impedimento atual
+## Implementação criada na branch
 
-Não é possível validar o acesso do Bazar ao Supabase hospedado enquanto esse banco estiver inativo. O status **INACTIVE** pode ocorrer por pausa do plano gratuito; não há evidência suficiente para afirmar que este seja o motivo, nem que as variáveis Vercel apontem para esse projeto.
+- supabase/drafts/bazar_persistence.sql: **rascunho não aplicado**, com três tabelas comerciais exclusivas (bazar_inventory, bazar_movements e bazar_sales), todas com RLS e grants mínimos.
+- Operações transacionais com RPC: entrada de peças por quantidade e preço, transferência de preços e venda com várias faixas. Todas exigem perfil staff/admin, incluem UUID de requisição para deduplicação e evitam estoque negativo.
+- src/app/bazar/actions.ts: Server Actions para leitura e gravação, com validação e verificação de sessão; nenhuma chave privada em código ou navegador.
+- src/components/bazar/bazar-demo-context.tsx: suporte à persistência real mediante opt-in, com UUID estável ao repetir uma operação incerta.
+- Interface mobile: mantém a versão demonstrativa quando persistência está desativada. Modo conectado carrega saldos reais do banco, registra operações e informa erros.
 
-A documentação oficial explica que um projeto gratuito pausado pode ser retomado no painel, dentro das condições de restauração vigentes. Confirmar **custo adicional R$ 0** antes de qualquer recuperação ou criação de recurso. Referência: https://supabase.com/docs/guides/platform/free-project-pausing
+**Feature flag:** a persistência só entra em funcionamento com \`BAZAR_PERSISTENCE_ENABLED=true\` em um ambiente configurado e após aplicar o esquema correspondente. Flag ausente = demonstração, sem qualquer escrita no Supabase.
 
-## Procedimento seguro recomendado
+## Testes realizados
 
-1. No painel Supabase Devhmb, verificar se o projeto `zcjiupytkgthaxitrttg` possui a ação `Resume project`, conferir plano e condições. Restaurar somente depois de decisão explícita da organização, preservando possíveis registros de famílias.
-2. Confirmar **sem expor os segredos** que URL e chave pública configuradas na Vercel pertencem ao projeto correto. Jamais colocar `service_role` ou segredo em `NEXT_PUBLIC_*`.
-3. Para desenvolver o Bazar, usar **PGlite/Supabase local com dados sintéticos** e novas estruturas isoladas: saldo por preço, movimentos, vendas, itens e auditoria de reprecificações. Não reutilizar a tabela de famílias.
-4. Proteger os novos dados por regras RLS e permissões próprias do Bazar, com testes de acesso indevido e garantia de que o registro de vendas é atômico/idempotente.
-5. Quando existir um ambiente de testes remoto gratuito autorizado, configurar valores **somente na Preview/Development específica**, sem alterar as variáveis Production e sem disparar deploy involuntário.
-6. Repetir os checks: lint, TypeScript, testes antigos de famílias, testes de bazar, build e teste mobile. Rever aplicação antes de qualquer publicação.
+- scripts/test-bazar-persistence.mjs executa o rascunho SQL num PGlite isolado com perfis fictícios. Verifica criação de tabelas, estoque inicial zero, entrada, reprecificação, venda idempotente, recusa de estoque negativo, rollback e restrições de acesso.
+- Fluxos antigos do módulo de famílias preservados, com CI automatizado da branch.
+- Teste no navegador mobile em modo demonstrativo. **Ainda falta um E2E conectado com Supabase Auth e API reais, em ambiente totalmente isolado.**
 
-## Limites de operação
+## Proteção de dados
 
-- **Não executar** deploy/Preview, merge, alteração de banco real, restauração do Supabase, migrações remotas ou uso de recursos pagos nesta fase.
-- Não usar dados reais de famílias ou clientes nos testes.
-- Preservar a `main`, o projeto Vercel em produção e as configurações existentes.
-- O `vercel.json` da branch de teste contém bloqueio de implantação automática nessa branch; não remover sem autorização.
+- Nenhuma tabela, política ou dado das famílias foi modificado.
+- O Bazar só guarda quantidades/preços, vendas, datas e UUID do responsável interno, sem cadastro de compradores nessa etapa.
+- Não realizar testes com dados pessoais de famílias ou clientes.
+- O banco real permanece inalterado. Não usar o projeto existente como ambiente de testes.
+
+## Etapas restantes para ativação definitiva
+
+1. Criar ou disponibilizar um ambiente de teste Supabase separado, sem cobrança; aplicar o rascunho SQL **somente no teste**, verificar grants, RLS, sessão real, RPCs e concorrência.
+2. Gerar e revisar a migração oficial usando a CLI Supabase; não aplicar diretamente o rascunho em produção.
+3. Confirmar qual projeto Supabase a produção Vercel utiliza (sem publicar ou copiar chaves).
+4. Verificar custo adicional de R$ 0, testar backup/rollback e autorizar uma janela de lançamento.
+5. Só então aplicar migração revisada, configurar a flag de persistência no destino autorizado e publicar a versão testada. Revalidar login, estoques, vendas e regressão de famílias.
+
+**Não houve merge, deploy, Preview, migração remota, alteração de dados familiares ou compra de recursos pagos nesta etapa.**
