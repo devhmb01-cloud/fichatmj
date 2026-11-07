@@ -5,7 +5,7 @@ import { useBazarDemo } from "@/components/bazar/bazar-demo-context";
 import { BAZAR_PRICES, formatBRL, stockTotal, type BazarPrice } from "@/lib/bazar/demo-model";
 
 export default function BazarEstoque() {
-  const { stock, addPieces, repricePieces } = useBazarDemo();
+  const { stock, addPieces, repricePieces, pending, persistent } = useBazarDemo();
   const [price, setPrice] = useState<BazarPrice>(5);
   const [quantity, setQuantity] = useState("1");
   const [from, setFrom] = useState<BazarPrice>(5);
@@ -20,9 +20,9 @@ export default function BazarEstoque() {
       </div>
       <div className="bazar-panel">
         <h3>Adicionar peças após a triagem</h3>
-        <form className="bazar-form" onSubmit={(event) => {
+        <form className="bazar-form" onSubmit={async (event) => {
           event.preventDefault();
-          const result = addPieces(price, Number(quantity));
+          const result = await addPieces(price, Number(quantity));
           setFeedback(result);
           if (result.ok) setQuantity("1");
         }}>
@@ -34,15 +34,15 @@ export default function BazarEstoque() {
           <label>Quantidade
             <input type="number" inputMode="numeric" min="1" max="10000" step="1" required value={quantity} onChange={(event) => setQuantity(event.target.value)} />
           </label>
-          <button type="submit" className="bazar-primary-action">Adicionar lote fictício</button>
+          <button type="submit" disabled={pending} className="bazar-primary-action">{persistent ? "Registrar lote" : "Adicionar lote fictício"}</button>
         </form>
       </div>
       <div className="bazar-panel">
         <h3>Reprecificar peças</h3>
         <p className="bazar-muted">Transfere quantidades de um preço para outro, sem duplicar o estoque.</p>
-        <form className="bazar-form" onSubmit={(event) => {
+        <form className="bazar-form" onSubmit={async (event) => {
           event.preventDefault();
-          const result = repricePieces(from, to, Number(repriceQuantity));
+          const result = await repricePieces(from, to, Number(repriceQuantity));
           setFeedback(result);
           if (result.ok) setRepriceQuantity("1");
         }}>
@@ -59,7 +59,7 @@ export default function BazarEstoque() {
           <label>Quantidade
             <input type="number" inputMode="numeric" min="1" max="10000" step="1" required value={repriceQuantity} onChange={(event) => setRepriceQuantity(event.target.value)} />
           </label>
-          <button type="submit" className="bazar-secondary-action">Reprecificar na simulação</button>
+          <button type="submit" disabled={pending} className="bazar-secondary-action">{persistent ? "Registrar reprecificação" : "Reprecificar na simulação"}</button>
         </form>
       </div>
       {feedback && <p role="status" className={feedback.ok ? "bazar-feedback-ok" : "bazar-feedback-error"}>{feedback.message}</p>}

@@ -7,7 +7,7 @@ const links = [
   ["/familias", "Famílias", "◎"],
   ["/novo", "Novo cadastro", "＋"],
   ["/relatorios", "Relatórios", "▤"],
-  ["/bazar", "Bazar · simulação", "▣"],
+  ["/bazar", "Bazar", "▣"],
 ];
 export function AppShell({
   children,

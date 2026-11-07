@@ -8,7 +8,7 @@ const MAIN_PRICES: BazarPrice[] = [5, 10, 15];
 const OTHER_PRICES = BAZAR_PRICES.filter((price) => !MAIN_PRICES.includes(price));
 
 export default function BazarVendas() {
-  const { stock, sales, registerSale } = useBazarDemo();
+  const { stock, sales, registerSale, pending, persistent } = useBazarDemo();
   const [cart, setCart] = useState<BazarCart>({});
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const [showOther, setShowOther] = useState(false);
@@ -26,14 +26,14 @@ export default function BazarVendas() {
     });
   }
 
-  function confirmSale() {
+  async function confirmSale() {
     // O modelo de domínio valida novamente todos os itens antes do registro.
     try { checkoutDemoSale(stock, cart); }
     catch (error) {
       setFeedback({ ok: false, message: error instanceof Error ? error.message : "Venda inválida." });
       return;
     }
-    const result = registerSale(cart);
+    const result = await registerSale(cart);
     setFeedback(result);
     if (result.ok) setCart({});
   }
@@ -68,15 +68,15 @@ export default function BazarVendas() {
       <div className="bazar-checkout">
         <div><small>Peças no registro</small><strong>{quantities}</strong></div>
         <div><small>Total da venda</small><strong>{formatBRL(amount)}</strong></div>
-        <button type="button" className="bazar-primary-action" disabled={quantities === 0} onClick={confirmSale}>
-          Confirmar venda fictícia
+        <button type="button" className="bazar-primary-action" disabled={quantities === 0 || pending} onClick={confirmSale}>
+          {persistent ? "Confirmar venda" : "Confirmar venda fictícia"}
         </button>
         <button type="button" className="bazar-link-button" disabled={quantities === 0} onClick={() => { setCart({}); setFeedback(null); }}>Limpar seleção</button>
       </div>
       {feedback && <p role="status" className={feedback.ok ? "bazar-feedback-ok" : "bazar-feedback-error"}>{feedback.message}</p>}
       <div className="bazar-panel">
-        <h3>Últimas vendas simuladas</h3>
-        {sales.length === 0 ? <p className="bazar-muted">Nenhuma venda registrada nesta demonstração.</p> : (
+        <h3>{persistent ? "Últimas vendas registradas" : "Últimas vendas simuladas"}</h3>
+        {sales.length === 0 ? <p className="bazar-muted">Nenhuma venda registrada ainda.</p> : (
           <ol className="bazar-history">
             {sales.slice(0, 5).map((sale) => <li key={sale.id}><span>{sale.quantity} peça(s) · {new Date(sale.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span><strong>{formatBRL(sale.amount)}</strong></li>)}
           </ol>
