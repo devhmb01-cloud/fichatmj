@@ -49,3 +49,13 @@
 .food-link{border:0;background:none;color:#256947;font-weight:700;cursor:pointer}
 @media(max-width:720px){.food-duo{grid-template-columns:1fr}.food-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.food-metric:last-child{grid-column:1/-1}.food-card,.food-metric{padding:15px}}
 @media(max-width:460px){.food-tabs a{font-size:11px;padding:12px 1px}.food-actions{display:grid;grid-template-columns:1fr 1fr}.food-actions>*{padding:10px 7px}.food-stock-grid{grid-template-columns:1fr}.food-basket-line{grid-template-columns:minmax(105px,1fr) 75px 70px;gap:7px}.food-basket-line .food-secondary{font-size:11px}.food-card{padding:13px}.food-heading h1{font-size:1.65rem}}
+
+/* Mobile: prioritize the next-month shortage over secondary stock columns. */
+@media(max-width:600px){
+  .food-table{white-space:normal}
+  .food-table th:nth-child(2),.food-table th:nth-child(3),
+  .food-table td:nth-child(2),.food-table td:nth-child(3){display:none}
+  .food-table th:last-child,.food-table td:last-child{text-align:right}
+  .food-table td:last-child{font-weight:800;white-space:nowrap}
+  .food-table td:first-child{min-width:0}
+}
