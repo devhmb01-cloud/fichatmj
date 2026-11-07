@@ -8,7 +8,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "feat/bazar-mvp-demo-20261107": false
+      "feat/bazar-mvp-demo-20261107": false,
+      "feat/alimentos-cestas-20261107": false
     }
   }
 }

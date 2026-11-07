@@ -8,6 +8,7 @@ const links = [
   ["/novo", "Novo cadastro", "＋"],
   ["/relatorios", "Relatórios", "▤"],
   ["/bazar", "Bazar", "▣"],
+  ["/alimentos", "Alimentos", "▥"],
 ];
 export function AppShell({
   children,
@@ -18,8 +19,9 @@ export function AppShell({
 }) {
   const path = usePathname();
   const isBazar = path === "/bazar" || path.startsWith("/bazar/");
-  const visibleLinks = isBazar
-    ? links.filter(([href]) => href === "/" || href === "/bazar")
+  const isAlimentos = path === "/alimentos" || path.startsWith("/alimentos/");
+  const visibleLinks = isBazar || isAlimentos
+    ? links.filter(([href]) => href === "/" || href === "/bazar" || href === "/alimentos")
     : links;
   return (
     <div className="shell">
@@ -30,10 +32,10 @@ export function AppShell({
         <Link className="brand" href="/">
           <b>tmj</b>
           <span>
-            Ficha TMJ<small>{isBazar ? "GESTÃO COMERCIAL" : "GESTÃO DE FAMÍLIAS"}</small>
+            Ficha TMJ<small>{isAlimentos ? "GESTÃO DE ALIMENTOS" : isBazar ? "GESTÃO COMERCIAL" : "GESTÃO DE FAMÍLIAS"}</small>
           </span>
         </Link>
-        <p className="nav-label">{isBazar ? "GESTÃO DO BAZAR" : "ESPAÇO DE ACOLHIMENTO"}</p>
+        <p className="nav-label">{isAlimentos ? "ASSISTÊNCIA ALIMENTAR" : isBazar ? "GESTÃO DO BAZAR" : "ESPAÇO DE ACOLHIMENTO"}</p>
         <nav aria-label="Navegação principal">
           {visibleLinks.map(([href, label, icon]) => (
             <Link
@@ -42,7 +44,8 @@ export function AppShell({
               aria-current={
                 path === href ||
                 (href === "/familias" && path.startsWith("/familias/")) ||
-                (href === "/bazar" && path.startsWith("/bazar/"))
+                (href === "/bazar" && path.startsWith("/bazar/")) ||
+                (href === "/alimentos" && path.startsWith("/alimentos/"))
                   ? "page"
                   : undefined
               }
