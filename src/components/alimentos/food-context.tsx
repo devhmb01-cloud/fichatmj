@@ -5,7 +5,7 @@ import {
   setFoodBasketQuantity, setFoodMonthlyFamilies, type FoodState,
 } from "@/lib/alimentos/model";
 import {
-  createFoodItem, deliverFood, getFoodState, receiveFoodStock,
+  createFoodItem, deliverFood, receiveFoodStock,
   updateBasketItem, updateMonthlyFamilies, type FoodActionResponse,
 } from "@/app/alimentos/actions";
 
