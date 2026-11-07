@@ -20,6 +20,7 @@ try {
     create table public.families(id uuid primary key,family_code text not null);
     grant usage on schema public to authenticated;
     grant usage on schema auth to authenticated;
+    grant select on public.profiles to authenticated;
     grant execute on function auth.uid() to authenticated;`);
   await query('insert into public.profiles(id,role) values ($1,$2)',[staff,'staff']);
   await query('insert into public.profiles(id,role) values ($1,$2)',[viewer,'viewer']);
