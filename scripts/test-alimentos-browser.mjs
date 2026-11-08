@@ -36,5 +36,42 @@ try {
     const dims=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}));
     assert.ok(dims.scroll<=dims.viewport+1,`${path} horizontal overflow: ${JSON.stringify(dims)}`);
   }
+  // The primary sidebar must not shrink or change headings between modules.
+  const navigationHrefs = ['/', '/familias', '/novo', '/relatorios', '/bazar', '/alimentos'];
+  const routesToCheck = [
+    ['/', '/'],
+    ['/familias', '/familias'],
+    ['/bazar', '/bazar'],
+    ['/bazar/estoque', '/bazar'],
+    ['/alimentos', '/alimentos'],
+    ['/alimentos/cesta', '/alimentos'],
+    ['/alimentos/entregas', '/alimentos'],
+  ];
+  for (const [route, active] of routesToCheck) {
+    await page.goto(origin + route, { waitUntil: 'networkidle' });
+    assert.deepEqual(
+      await page.locator('aside nav a').evaluateAll(links => links.map(link => link.getAttribute('href'))),
+      navigationHrefs,
+      'Menu lateral deve manter todos os links em ' + route,
+    );
+    assert.equal(await page.locator('aside .brand small').innerText(), 'GESTÃO DA ONG');
+    assert.equal(await page.locator('aside nav a[aria-current="page"]').getAttribute('href'), active);
+  }
+  const desktop = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  const desktopPage = await desktop.newPage();
+  try {
+    for (const [route, active] of routesToCheck) {
+      await desktopPage.goto(origin + route, { waitUntil: 'networkidle' });
+      assert.deepEqual(
+        await desktopPage.locator('aside nav a').evaluateAll(links => links.map(link => link.getAttribute('href'))),
+        navigationHrefs,
+        'Sidebar desktop deve manter todos os links em ' + route,
+      );
+      assert.equal(await desktopPage.locator('aside nav a[aria-current="page"]').getAttribute('href'), active);
+      assert.equal(await desktopPage.locator('aside .nav-label').innerText(), 'NAVEGAÇÃO PRINCIPAL');
+    }
+  } finally { await desktop.close(); }
+  console.log('PASS: sidebar fixed across modules and active link correct on mobile and desktop');
+
   console.log('PASS: Alimentos mobile navigation, stock, basket, family delivery, and zero horizontal overflow');
 } finally { await browser.close(); }
