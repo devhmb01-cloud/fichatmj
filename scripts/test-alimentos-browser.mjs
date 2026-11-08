@@ -71,6 +71,54 @@ try {
       assert.equal(await desktopPage.locator('aside .nav-label').innerText(), 'NAVEGAÇÃO PRINCIPAL');
     }
   } finally { await desktop.close(); }
+  // Regression: route transitions via Next.js Links, not only page.goto reloads.
+  for (const ctx of [context, await browser.newContext({ viewport: {width: 1366, height: 900} })]) {
+    const testPage = await ctx.newPage();
+    try {
+      await testPage.goto(origin + '/', { waitUntil: 'networkidle' });
+      for (const [href, heading] of [
+        ['/bazar', 'Bazar'],
+        ['/alimentos', 'Alimentos e Cestas'],
+        ['/familias', null],
+        ['/bazar', 'Bazar'],
+        ['/alimentos', 'Alimentos e Cestas'],
+      ]) {
+        await testPage.locator('.app-primary-nav a[href="' + href + '"]').click();
+        await testPage.waitForURL(url => url.pathname === href);
+        if (heading) await testPage.getByRole('heading', {name: heading, level: 1}).waitFor();
+        const stats = await testPage.evaluate(() => {
+          const sidebar = document.querySelector('.app-sidebar');
+          const nav = document.querySelector('.app-primary-nav');
+          const links = Array.from(nav?.querySelectorAll('a') ?? []);
+          const box = sidebar?.getBoundingClientRect();
+          return {
+            title: document.querySelector('.brand small')?.textContent,
+            path: location.pathname,
+            sticky: sidebar ? getComputedStyle(sidebar).position : null,
+            overflow: nav ? getComputedStyle(nav).overflowX : null,
+            allVisible: links.every(a => {
+              const r = a.getBoundingClientRect();
+              const style = getComputedStyle(a);
+              return r.width > 0 && r.height > 0 && r.left >= -1
+                && r.right <= innerWidth + 1
+                && style.visibility !== 'hidden' && style.display !== 'none';
+            }),
+            links: links.map(a => a.getAttribute('href')),
+            active: nav?.querySelector('a[aria-current="page"]')?.getAttribute('href'),
+            sidebarTop: box?.top,
+          };
+        });
+        assert.equal(stats.title, 'GESTÃO DA ONG');
+        assert.deepEqual(stats.links, navigationHrefs);
+        assert.equal(stats.active, href);
+        assert.equal(stats.sticky, 'sticky');
+        assert.equal(stats.overflow, 'visible');
+        assert.ok(stats.allVisible, 'Todos os 6 links devem estar visíveis: ' + JSON.stringify(stats));
+        assert.ok((stats.sidebarTop ?? 100) >= -1 && (stats.sidebarTop ?? 100) <= 1, 'Sidebar não deve sair da tela: ' + JSON.stringify(stats));
+      }
+    } finally { await testPage.close(); if (ctx !== context) await ctx.close(); }
+  }
+  console.log('PASS: SPA clicks keep all 6 sidebar links visible, sticky and styled consistently on mobile/desktop');
   console.log('PASS: sidebar fixed across modules and active link correct on mobile and desktop');
 
   console.log('PASS: Alimentos mobile navigation, stock, basket, family delivery, and zero horizontal overflow');

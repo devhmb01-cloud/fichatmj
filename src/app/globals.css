@@ -39,12 +39,17 @@ button {
   display: flex;
   min-height: 100vh;
 }
-aside {
+.app-sidebar {
   width: 246px;
   flex-shrink: 0;
   background: white;
   border-right: 1px solid var(--line);
   padding: 35px 23px;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  align-self: flex-start;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
@@ -73,23 +78,23 @@ aside {
   color: var(--muted);
   margin: 48px 0 15px;
 }
-nav {
+.app-primary-nav {
   display: grid;
   gap: 9px;
 }
-nav a {
+.app-primary-nav a {
   display: flex;
   gap: 14px;
   padding: 12px;
   border-radius: 8px;
   color: #5f716a;
 }
-nav a[aria-current="page"] {
+.app-primary-nav a[aria-current="page"] {
   background: #e8f2ea;
   color: #205d48;
   font-weight: bold;
 }
-nav a:hover {
+.app-primary-nav a:hover {
   background: #f0f5f1;
 }
 .aside-bottom {
@@ -346,7 +351,7 @@ textarea {
   top: 10px;
 }
 @media (max-width: 1050px) {
-  aside {
+  .app-sidebar {
     width: 205px;
     padding: 25px 15px;
   }
@@ -367,9 +372,17 @@ textarea {
   .shell {
     display: block;
   }
-  aside {
+  .app-sidebar {
     width: 100%;
-    padding: 18px;
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    overflow: visible;
+    padding: 10px 12px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 3px 10px rgba(21, 52, 38, .06);
   }
   .brand {
     font-size: 20px;
@@ -378,17 +391,30 @@ textarea {
   .aside-bottom {
     display: none;
   }
-  nav {
-    display: flex;
-    overflow: auto;
-    margin-top: 20px;
-    gap: 5px;
+  .app-primary-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    margin-top: 10px;
+    gap: 4px;
   }
-  nav a {
-    white-space: nowrap;
-    font-size: 12px;
-    gap: 6px;
-    padding: 9px;
+  .app-primary-nav a {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.2;
+    min-width: 0;
+    min-height: 50px;
+    gap: 3px;
+    padding: 6px 3px;
+  }
+  .app-primary-nav a > span {
+    font-size: 16px;
+    line-height: 1;
   }
   .topbar {
     height: 53px;

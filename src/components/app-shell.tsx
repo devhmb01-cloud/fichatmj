@@ -23,7 +23,7 @@ export function AppShell({
       <a className="skip" href="#conteudo">
         Pular para conteúdo
       </a>
-      <aside>
+      <aside className="app-sidebar">
         <Link className="brand" href="/">
           <b>tmj</b>
           <span>
@@ -31,7 +31,7 @@ export function AppShell({
           </span>
         </Link>
         <p className="nav-label">NAVEGAÇÃO PRINCIPAL</p>
-        <nav aria-label="Navegação principal">
+        <nav className="app-primary-nav" aria-label="Navegação principal">
           {links.map(([href, label, icon]) => (
             <Link
               href={href}
