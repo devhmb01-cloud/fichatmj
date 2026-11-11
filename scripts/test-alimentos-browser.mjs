@@ -55,7 +55,7 @@ try {
   const beforeCount=Number((await review.locator('.food-count').innerText()).split(' ')[0]);
   assert.ok(beforeCount>0);
   await review.locator('select').selectOption({index:1});
-  const beforeStock=await page.locator('.food-stock-grid').innerText();
+  const beforeStock=await page.locator('.food-stock-line > span').allTextContents();
   await review.getByLabel('Data de validade encontrada').fill('2025-06-20');
   await review.getByRole('alert').waitFor();
   assert.equal(await review.getByRole('button',{name:'Confirmar validade e registrar no histórico'}).isDisabled(),true);
@@ -63,7 +63,7 @@ try {
   await review.getByRole('button',{name:'Confirmar validade e registrar no histórico'}).click();
   await page.getByText('Validade confirmada (simulação)').waitFor();
   assert.equal(Number((await review.locator('.food-count').innerText()).split(' ')[0]),beforeCount-1);
-  assert.equal(await page.locator('.food-stock-grid').innerText(),beforeStock,'Confirming date must not change stock');
+  assert.deepEqual(await page.locator('.food-stock-line > span').allTextContents(),beforeStock,'Confirming date must not change quantities');
   await review.getByRole('heading',{name:'Últimas conferências de validade'}).waitFor();
   await page.screenshot({path:'artifacts/alimentos-validade-revisada.png',fullPage:true});
 
