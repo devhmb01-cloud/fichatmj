@@ -3,6 +3,7 @@ export type FoodItem = { id: string; name: string; unit: string; stock: number; 
 export type FoodLot = { id: string; itemId: string; remaining: number; expiresOn: string | null; createdAt: string; origin: "legacy" | "donation" };
 export type FoodLossReason = "expired" | "damaged" | "unfit" | "other";
 export type FoodLoss = { id: string; itemId: string; lotId: string; quantity: number; reason: FoodLossReason; recordedAt: string };
+export type FoodExpiryUpdate = { id: string; lotId: string; previousExpiresOn: string | null; newExpiresOn: string; recordedAt: string };
 export const LOSS_REASON_LABELS: Record<FoodLossReason,string> = { expired: "Vencimento", damaged: "Avaria", unfit: "Impróprio para consumo", other: "Outro" };
 export function brazilToday(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit" }).format(new Date());
@@ -23,7 +24,7 @@ export function lotValidity(state: FoodState, itemId: string, today = brazilToda
 export type FoodFamily = { id: string; code: string };
 export type FoodDistributionLine = { itemId: string; name: string; unit: string; quantity: number };
 export type FoodDistribution = { id: string; familyId: string; deliveredAt: string; lines: FoodDistributionLine[] };
-export type FoodState = { items: FoodItem[]; families: FoodFamily[]; distributions: FoodDistribution[]; monthlyFamilies: number; lots?: FoodLot[]; losses?: FoodLoss[] };
+export type FoodState = { items: FoodItem[]; families: FoodFamily[]; distributions: FoodDistribution[]; monthlyFamilies: number; lots?: FoodLot[]; losses?: FoodLoss[]; expiryUpdates?: FoodExpiryUpdate[] };
 export type FoodNeed = { itemId: string; name: string; unit: string; stock: number; perBasket: number; neededPerMonth: number; missingNextMonth: number; months: number };
 const DEMO_FOODS: FoodItem[] = [
   { id: "f-arroz", name: "Arroz", unit: "pacote de 5 kg", stock: 90, perBasket: 1 },
@@ -42,7 +43,7 @@ export function initialFoodDemo(): FoodState {
     families: ["001", "002", "003", "004"].map(i => ({ id: `sim-${i}`, code: `FAM-SIM-${i}` })),
     distributions: [], monthlyFamilies: 40,
     lots: DEMO_FOODS.map(item => ({ id: `sim-lote-${item.id}`,itemId:item.id,remaining:item.stock,expiresOn:null,createdAt:'2026-01-01T12:00:00Z',origin:'legacy' as const })),
-    losses: [],
+    losses: [], expiryUpdates: [],
   };
 }
 export function assertQuantity(value: number, min = 1, max = 10000): void {
@@ -79,6 +80,33 @@ export function receiveFoodLot(state: FoodState, itemId: string, quantity: numbe
   });
   const lot: FoodLot = { id,itemId,remaining:quantity,expiresOn,createdAt:new Date().toISOString(),origin:"donation" };
   return { ...state,items,lots:state.lots ? [lot,...state.lots] : undefined };
+}
+export function confirmFoodLotExpiry(
+  state: FoodState,lotId: string,expiresOn: string,requestId = crypto.randomUUID()
+): FoodState {
+  const date=new Date(expiresOn + "T12:00:00Z");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresOn) ||
+      !Number.isFinite(date.valueOf()) ||
+      date.toISOString().slice(0,10)!==expiresOn ||
+      expiresOn < "2000-01-01" || expiresOn > "2100-12-31")
+    throw new Error("Informe uma data de validade válida.");
+  const existing=(state.expiryUpdates??[]).find(update=>update.id===requestId);
+  if(existing) {
+    if(existing.lotId!==lotId || existing.newExpiresOn!==expiresOn)
+      throw new Error("Identificador já utilizado para outro lote ou data.");
+    return state;
+  }
+  const lot=state.lots?.find(l=>l.id===lotId);
+  if(!lot || lot.remaining<=0) throw new Error("Selecione um lote com saldo disponível.");
+  if(lot.expiresOn!==null) throw new Error("O lote já possui uma validade informada.");
+  return {
+    ...state,
+    lots:state.lots?.map(l=>l.id===lotId?{...l,expiresOn}:l),
+    expiryUpdates:[
+      {id:requestId,lotId,previousExpiresOn:null,newExpiresOn:expiresOn,recordedAt:new Date().toISOString()},
+      ...(state.expiryUpdates??[])
+    ]
+  };
 }
 export function registerFoodLoss(state: FoodState, lotId: string, quantity: number, reason: FoodLossReason, id = crypto.randomUUID()): FoodState {
   assertQuantity(quantity);

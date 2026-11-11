@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useFood } from "@/components/alimentos/food-context";
 import { foodMetrics, lotValidity, brazilToday, LOSS_REASON_LABELS, type FoodLossReason } from "@/lib/alimentos/model";
 export default function FoodStockClient({ initialItemId }: { initialItemId: string }) {
-  const { data, addItem, receive, recordLoss, pending } = useFood();
+  const { data, addItem, receive, recordLoss, confirmExpiry, pending } = useFood();
   const [newName, setNewName] = useState("");
   const [unit, setUnit] = useState("pacote de 1 kg");
   const [perBasket, setPerBasket] = useState("0");
@@ -13,12 +13,18 @@ export default function FoodStockClient({ initialItemId }: { initialItemId: stri
   const [lossLot, setLossLot] = useState("");
   const [lossQty, setLossQty] = useState("1");
   const [lossReason, setLossReason] = useState<FoodLossReason>("expired");
+  const [unknownLotId, setUnknownLotId] = useState("");
+  const [reviewedExpiry, setReviewedExpiry] = useState("");
+  const [confirmExpired, setConfirmExpired] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const metrics = foodMetrics(data);
   const selectedItem = data.items.find(item => item.id === itemId);
   const selectedNeed = metrics.needs.find(item => item.itemId === itemId);
   const activeLots = (data.lots ?? []).filter(l => l.remaining > 0);
   const lossCandidate = activeLots.find(l => l.id === lossLot);
+  const unknownLots = activeLots.filter(l => l.expiresOn === null);
+  const selectedUnknown = unknownLots.find(l=>l.id===unknownLotId);
+  const newDateIsExpired = reviewedExpiry.length > 0 && reviewedExpiry < brazilToday();
   return <section className="food-section" aria-labelledby="food-stock-title">
     <div className="food-heading-block"><h2 id="food-stock-title">Estoque de alimentos</h2><p>Cadastre os produtos e registre cada doação por embalagem recebida.</p></div>
     <div className="food-duo">
@@ -48,6 +54,51 @@ export default function FoodStockClient({ initialItemId }: { initialItemId: stri
     <article className="food-card"><div className="food-card-heading"><h3>Saldo atual</h3><strong>{metrics.usablePackages} disponíveis · {metrics.totalPackages} registradas</strong></div>
       <div className="food-stock-grid">{data.items.map(item => {const availability=lotValidity(data,item.id);return <div key={item.id} className="food-stock-line"><div><strong>{item.name}</strong><small>{item.unit} · {availability.expired ? `${availability.expired} vencidas · ` : ""}{availability.unknown ? `${availability.unknown} sem validade · ` : ""} ${availability.usable} utilizáveis</small></div><span>{item.stock}</span></div>;})}</div>
       <p className="food-muted">A quantidade registrada inclui lotes vencidos até que sejam baixados como perda. As cestas usam somente os lotes não vencidos.</p>
+    </article>
+    <article className="food-card" id="food-expiry-review">
+      <div className="food-card-heading">
+        <div><h3>Conferir validade dos lotes antigos</h3>
+          <p>Informe a data encontrada na embalagem. A correção fica registrada com histórico e não altera a quantidade.</p></div>
+        <span className="food-count">{unknownLots.length} lote(s) para conferir</span>
+      </div>
+      {unknownLots.length ? <form className="food-form" onSubmit={async event=>{
+        event.preventDefault();
+        if(newDateIsExpired && !confirmExpired) return;
+        const result=await confirmExpiry(unknownLotId,reviewedExpiry);
+        setFeedback(result);
+        if(result.ok){setUnknownLotId("");setReviewedExpiry("");setConfirmExpired(false);}
+      }}>
+        <label>Lote sem validade<select required value={unknownLotId} onChange={event=>{
+          setUnknownLotId(event.target.value);setReviewedExpiry("");setConfirmExpired(false);setFeedback(null);
+        }}>
+          <option value="">Selecione um lote para conferir</option>
+          {unknownLots.map(l=>{
+            const item=data.items.find(i=>i.id===l.itemId);
+            return <option key={l.id} value={l.id}>{item?.name??"Alimento"} · {l.remaining} embalagens · {item?.unit??""}</option>;
+          })}
+        </select></label>
+        {selectedUnknown && <p className="food-muted">Este lote possui {selectedUnknown.remaining} embalagens. Confirme a data impressa antes de salvar.</p>}
+        <label>Data de validade encontrada<input required type="date" value={reviewedExpiry} onChange={event=>{
+          setReviewedExpiry(event.target.value);setConfirmExpired(false);
+        }}/></label>
+        {newDateIsExpired && <div className="food-expiry-warning" role="alert">
+          A data informada já passou. O lote deixará de contar como disponível para as cestas. Depois, registre a perda ou descarte.
+          <label className="food-confirm"><input type="checkbox" checked={confirmExpired} onChange={event=>setConfirmExpired(event.target.checked)}/>
+            Confirmo que a data vencida corresponde à embalagem.</label>
+        </div>}
+        <button type="submit" className="food-secondary" disabled={pending || !selectedUnknown || !reviewedExpiry || (newDateIsExpired && !confirmExpired)}>
+          Confirmar validade e registrar no histórico
+        </button>
+      </form> : <p className="food-muted">Todos os lotes com saldo já possuem validade informada.</p>}
+      {(data.expiryUpdates??[]).length>0 && <div className="food-loss-history">
+        <h3>Últimas conferências de validade</h3>
+        <ol>{data.expiryUpdates?.slice(0,6).map(update=>{
+          const lot=data.lots?.find(l=>l.id===update.lotId);
+          const name=data.items.find(item=>item.id===lot?.itemId)?.name??"Lote cadastrado";
+          return <li key={update.id}><span>{name} · {update.newExpiresOn.split("-").reverse().join("/")}</span>
+            <small>{new Date(update.recordedAt).toLocaleDateString("pt-BR")}</small></li>;
+        })}</ol>
+      </div>}
     </article>
     <article className="food-card" id="food-loss-form">
       <div className="food-card-heading"><div><h3>Registrar perda ou descarte</h3><p>Baixe embalagens vencidas, danificadas ou impróprias. O histórico é auditável.</p></div></div>

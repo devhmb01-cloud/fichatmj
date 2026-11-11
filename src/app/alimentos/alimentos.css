@@ -88,3 +88,8 @@
 .food-loss-history ol {padding:0;margin:0;list-style:none;}
 .food-loss-history li {display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #edf2ee;gap:8px;font-size:12px;}
 @media(max-width:650px){.food-safety-metrics{grid-template-columns:1fr 1fr}.food-safety-card:last-child{grid-column:1/-1}}
+
+/* Expiry confirmation for legacy lots */
+#food-expiry-review{scroll-margin-top:145px}
+.food-expiry-warning{padding:12px 14px;background:#fff7e8;border:1px solid #ebce9e;color:#814c14;border-radius:10px;line-height:1.5;font-size:13px}
+.food-expiry-warning .food-confirm{margin-top:10px}

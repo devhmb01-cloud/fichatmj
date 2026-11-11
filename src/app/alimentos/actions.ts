@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { requireTeam } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { type FoodState, type FoodItem, type FoodDistributionLine, type FoodLot, type FoodLoss } from "@/lib/alimentos/model";
+import { type FoodState, type FoodItem, type FoodDistributionLine, type FoodLot, type FoodLoss, type FoodExpiryUpdate } from "@/lib/alimentos/model";
 
 export type FoodActionResponse =
   | { ok: true; state: FoodState; duplicate: boolean }
@@ -14,7 +14,7 @@ function ensureEnabled() {
 }
 async function readState(client: Client): Promise<FoodState> {
   ensureEnabled();
-  const [items, families, deliveries, settings, lots, losses] = await Promise.all([
+  const [items, families, deliveries, settings, lots, losses, expiryUpdates] = await Promise.all([
     client.from("food_items").select("id,name,unit,stock,per_basket").order("name"),
     // Only family identifier and internal code; do not copy health, address or contact data.
     client.from("families").select("id,family_code").order("family_code").limit(1000),
@@ -23,9 +23,11 @@ async function readState(client: Client): Promise<FoodState> {
     client.from("food_settings").select("monthly_families").eq("id", 1).single(),
     client.from("food_lots").select("id,item_id,remaining,expires_on,created_at,origin").order("created_at",{ascending:false}).limit(1000),
     client.from("food_losses").select("id,item_id,lot_id,quantity,reason,created_at").order("created_at",{ascending:false}).limit(1000),
+    client.from("food_lot_expiry_updates").select("id,lot_id,previous_expires_on,new_expires_on,created_at")
+      .order("created_at",{ascending:false}).limit(1000),
   ]);
-  if (items.error || families.error || deliveries.error || settings.error || !settings.data || lots.error || losses.error ||
-    (lots.data?.length ?? 0) >= 1000 || (losses.data?.length ?? 0) >= 1000) {
+  if (items.error || families.error || deliveries.error || settings.error || !settings.data || lots.error || losses.error || expiryUpdates.error ||
+    (lots.data?.length ?? 0) >= 1000 || (losses.data?.length ?? 0) >= 1000 || (expiryUpdates.data?.length ?? 0) >= 1000) {
     throw new Error("Não foi possível consultar os alimentos. Confira as migrações e permissões.");
   }
   return {
@@ -43,6 +45,10 @@ async function readState(client: Client): Promise<FoodState> {
       expiresOn:row.expires_on,createdAt:row.created_at,origin:row.origin})),
     losses: (losses.data ?? []).map((row):FoodLoss => ({id:row.id,itemId:row.item_id,lotId:row.lot_id,
       quantity:row.quantity,reason:row.reason,recordedAt:row.created_at})),
+    expiryUpdates: (expiryUpdates.data ?? []).map((row):FoodExpiryUpdate => ({
+      id:row.id,lotId:row.lot_id,previousExpiresOn:row.previous_expires_on,
+      newExpiresOn:row.new_expires_on,recordedAt:row.created_at
+    })),
   };
 }
 export async function getFoodState(): Promise<FoodState> {
@@ -56,7 +62,7 @@ const uuid = z.string().uuid();
 const quantity = z.number().int().min(1).max(10000);
 const basketQty = z.number().int().min(0).max(100);
 async function invoke(name: "food_add_item" | "food_receive_stock" | "food_update_basket" |
-  "food_update_target" | "food_distribute" | "food_receive_lot" | "food_record_loss", args: Record<string, unknown>): Promise<FoodActionResponse> {
+  "food_update_target" | "food_distribute" | "food_receive_lot" | "food_record_loss" | "food_confirm_lot_expiry", args: Record<string, unknown>): Promise<FoodActionResponse> {
   try {
     ensureEnabled();
     const session = await requireTeam(true);
@@ -93,6 +99,16 @@ export async function recordFoodLoss(input: unknown): Promise<FoodActionResponse
   const d=result.data;
   return invoke("food_record_loss",{p_request_id:d.requestId,p_lot_id:d.lotId,
     p_quantity:d.quantity,p_reason:d.reason});
+}
+export async function confirmUnknownLotExpiry(input: unknown): Promise<FoodActionResponse> {
+  const parsed=z.object({requestId:uuid,lotId:uuid,expiresOn:expiryDate.unwrap()}).safeParse(input);
+  if(!parsed.success) return {ok:false,message:"Lote ou data de validade inválidos."};
+  const {requestId,lotId,expiresOn}=parsed.data;
+  if(expiresOn<"2000-01-01" || expiresOn>"2100-12-31")
+    return {ok:false,message:"Data de validade fora do intervalo permitido."};
+  return invoke("food_confirm_lot_expiry",{
+    p_request_id:requestId,p_lot_id:lotId,p_expires_on:expiresOn
+  });
 }
 export async function updateBasketItem(input: unknown): Promise<FoodActionResponse> {
   const result = z.object({ requestId: uuid, itemId: uuid, perBasket: basketQty }).safeParse(input);

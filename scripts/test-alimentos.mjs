@@ -97,3 +97,25 @@ test('perdas diminuem estoque, ficam no histórico e não são duplicadas',()=>{
   assert.throws(()=>registerFoodLoss(b,lot.id,4,'damaged','loss-demo-1'),/já registrada/);
   assert.throws(()=>registerFoodLoss(b,lot.id,100,'damaged'),/maior que o saldo/);
 });
+
+test('lote antigo recebe data sem alterar saldo e mantém auditoria',()=>{
+  const state=initialFoodDemo();
+  const lot=state.lots.find(l=>l.itemId==='f-leite');
+  const future='2027-02-28';
+  const reviewed=confirmFoodLotExpiry(state,lot.id,future,'check-1');
+  assert.equal(reviewed.lots.find(l=>l.id===lot.id).expiresOn,future);
+  assert.equal(reviewed.items.find(i=>i.id==='f-leite').stock,45);
+  assert.equal(reviewed.expiryUpdates.length,1);
+  assert.equal(confirmFoodLotExpiry(reviewed,lot.id,future,'check-1'),reviewed);
+  assert.throws(()=>confirmFoodLotExpiry(reviewed,lot.id,'2027-03-01','check-2'),/já possui/);
+  assert.throws(()=>confirmFoodLotExpiry(state,lot.id,'2027-02-30','check-3'),/válida/);
+});
+test('validade passada corrigida exclui lote de cestas sem descarte automático',()=>{
+  const state=initialFoodDemo();
+  const lot=state.lots.find(l=>l.itemId==='f-leite');
+  const reviewed=confirmFoodLotExpiry(state,lot.id,'2025-06-20','check-past');
+  assert.equal(foodMetrics(reviewed).basketsPossible,0);
+  assert.equal(foodMetrics(reviewed).expiredPackages,45);
+  assert.equal(foodMetrics(reviewed).totalPackages,foodMetrics(state).totalPackages);
+  assert.equal(reviewed.losses.length,0);
+});
