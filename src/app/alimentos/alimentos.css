@@ -59,3 +59,20 @@
   .food-table td:last-child{font-weight:800;white-space:nowrap}
   .food-table td:first-child{min-width:0}
 }
+
+/* Stock entry shortcuts and replenishment link — scoped to the food module. */
+#food-receive-form { scroll-margin-top: 165px; }
+.food-selected-stock { display:grid; gap:3px; padding:12px; border-radius:10px; background:#edf7f0; border:1px solid #d7e9dd; color:#1c6043; }
+.food-selected-stock strong { font-size:14px; }
+.food-selected-stock small { font-size:12px; line-height:1.4; }
+.food-quick-quantities { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.food-quick-quantity { min-height:44px; border:1px solid #d4e0d8; border-radius:9px; padding:6px 4px; background:#f7faf7; color:#28634b; font-size:12px; font-weight:700; }
+.food-quick-quantity.is-selected { background:#dcefe4; color:#124a33; border-color:#75ad8f; }
+.food-quick-quantity:hover { background:#e7f3eb; }
+.food-replenish-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.food-replenish-link { border:1px solid #c3dccd; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; padding:5px 10px; min-height:36px; white-space:nowrap; font-weight:700; color:#185e44; background:#e5f4ea; }
+.food-replenish-link:hover { background:#d6eadc; }
+@media (max-width:460px) {
+  .food-replenish-actions { flex-direction:column; align-items:flex-end; gap:5px; }
+  .food-quick-quantity { font-size:11px; }
+}

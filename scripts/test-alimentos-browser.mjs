@@ -12,8 +12,13 @@ try {
   await page.goto(origin+'/alimentos',{waitUntil:'networkidle'});
   await page.getByRole('heading',{name:'Alimentos e Cestas',level:1}).waitFor();
   await page.screenshot({path:'artifacts/alimentos-painel.png',fullPage:true});
-  await page.getByRole('link',{name:'Estoque',exact:true}).click();
+  await page.getByRole('link',{name:'Repor Leite'}).click();
   await page.getByRole('heading',{name:'Estoque de alimentos'}).waitFor();
+  assert.equal(await page.locator('.food-form select').first().inputValue(), 'f-leite', 'A reposição deve pré-selecionar o alimento');
+  await page.getByRole('button',{name:'5 embalagens'}).click();
+  assert.equal(await page.getByLabel('Quantidade de embalagens').inputValue(), '5');
+  await page.getByRole('button',{name:'10 embalagens'}).click();
+  assert.equal(await page.getByLabel('Quantidade de embalagens').inputValue(), '10');
   await page.locator('.food-form select').first().selectOption('f-leite');
   await page.getByLabel('Quantidade de embalagens').fill('80');
   await page.getByRole('button',{name:'Adicionar ao estoque'}).click();
@@ -118,6 +123,25 @@ try {
       }
     } finally { await testPage.close(); if (ctx !== context) await ctx.close(); }
   }
+  // On desktop, scrolling the sidebar must not hide the brand or the global navigation.
+  const sidebarCheck = await browser.newContext({ viewport: { width: 1366, height: 760 } });
+  const brandPage = await sidebarCheck.newPage();
+  try {
+    await brandPage.goto(origin + '/alimentos', { waitUntil: 'networkidle' });
+    await brandPage.locator('.app-sidebar .brand').hover();
+    await brandPage.mouse.wheel(0, 720);
+    await brandPage.waitForTimeout(150);
+    const sidebarState = await brandPage.locator('.app-sidebar').evaluate(el => ({
+      scrollTop: el.scrollTop,
+      overflowY: getComputedStyle(el).overflowY,
+      logoTop: el.querySelector('.brand').getBoundingClientRect().top,
+      logoBottom: el.querySelector('.brand').getBoundingClientRect().bottom,
+    }));
+    assert.equal(sidebarState.scrollTop, 0, 'O contêiner do menu não deve rolar e esconder a marca');
+    assert.equal(sidebarState.overflowY, 'hidden');
+    assert.ok(sidebarState.logoTop >= -1 && sidebarState.logoBottom <= 760, 'Logo deve permanecer visível');
+  } finally { await sidebarCheck.close(); }
+  console.log('PASS: desktop sidebar brand remains visible while scrolling');
   console.log('PASS: SPA clicks keep all 6 sidebar links visible, sticky and styled consistently on mobile/desktop');
   console.log('PASS: sidebar fixed across modules and active link correct on mobile and desktop');
 

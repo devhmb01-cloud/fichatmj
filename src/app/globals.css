@@ -49,9 +49,12 @@ button {
   top: 0;
   height: 100dvh;
   align-self: flex-start;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+.app-sidebar > .brand {
+  flex-shrink: 0;
 }
 .brand {
   display: flex;
@@ -97,7 +100,11 @@ button {
 .app-primary-nav a:hover {
   background: #f0f5f1;
 }
+.app-sidebar > .nav-label {
+  flex-shrink: 0;
+}
 .aside-bottom {
+  flex-shrink: 0;
   margin-top: auto;
   padding-top: 60px;
   font-size: 12px;
@@ -367,6 +374,12 @@ textarea {
   h1 {
     font-size: 28px;
   }
+}
+@media (max-height: 700px) and (min-width: 701px) {
+  .app-sidebar { padding-top: 16px; padding-bottom: 16px; }
+  .app-sidebar .nav-label { margin: 16px 0 8px; }
+  .app-primary-nav { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .aside-bottom { padding-top: 14px; }
 }
 @media (max-width: 700px) {
   .shell {
