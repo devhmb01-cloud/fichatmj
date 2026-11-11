@@ -21,6 +21,7 @@ jobs:
       - run: npm ci
       - run: node --experimental-strip-types --test scripts/test-alimentos.mjs
       - run: node scripts/test-alimentos-db.mjs
+      - run: node scripts/test-alimentos-validade-db.mjs
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
