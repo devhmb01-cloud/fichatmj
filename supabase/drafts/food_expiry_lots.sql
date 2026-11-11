@@ -114,7 +114,7 @@ begin
    for v_lot in select id,remaining from public.food_lots
      where item_id=v_item.id and remaining>0 and (expires_on is null or expires_on>=v_today)
      order by expires_on asc nulls last,created_at,id for update loop
-     v_take := pg_catalog.least(v_missing,v_lot.remaining);
+     v_take := least(v_missing,v_lot.remaining);
      update public.food_lots set remaining=remaining-v_take where id=v_lot.id;
      v_missing := v_missing-v_take;
      exit when v_missing=0;

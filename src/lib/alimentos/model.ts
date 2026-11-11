@@ -144,14 +144,14 @@ export function deliverFoodBasket(state: FoodState, familyId: string, deliveryId
   if (!active.length) throw new Error("Configure primeiro os alimentos da cesta padrão.");
   for (const item of active) {
     if (lotValidity(state,item.id,deliveredAt.slice(0,10)).usable < item.perBasket)
-      throw new Error(`Estoque válido insuficiente de ${item.name}.`);
+      throw new Error(`Estoque insuficiente de ${item.name}.`);
   }
   const lines: FoodDistributionLine[] = active.map(item => ({
     itemId: item.id, name: item.name, unit: item.unit, quantity: item.perBasket,
   }));
   return {
     ...state,
-    items: state.items.map(item => ({ ...item, stock: stockAfterDelivery(item,state) })),
+    items: state.items.map(item => ({ ...item, stock: stockAfterDelivery(item) })),
     lots: state.lots ? lotsAfterDelivery(state,deliveredAt.slice(0,10)) : undefined,
     distributions: [{ id: deliveryId, familyId, deliveredAt, lines }, ...state.distributions],
   };
@@ -174,6 +174,6 @@ function lotsAfterDelivery(state: FoodState, today: string): FoodLot[] {
   }
   return lots;
 }
-function stockAfterDelivery(item: FoodItem,state:FoodState) {
+function stockAfterDelivery(item: FoodItem) {
   return item.stock - (item.perBasket > 0 ? item.perBasket : 0);
 }
