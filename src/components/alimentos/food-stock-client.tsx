@@ -1,23 +1,29 @@
 "use client";
 import { useState } from "react";
 import { useFood } from "@/components/alimentos/food-context";
-import { foodMetrics } from "@/lib/alimentos/model";
+import { foodMetrics, lotValidity, brazilToday, LOSS_REASON_LABELS, type FoodLossReason } from "@/lib/alimentos/model";
 export default function FoodStockClient({ initialItemId }: { initialItemId: string }) {
-  const { data, addItem, receive, pending } = useFood();
+  const { data, addItem, receive, recordLoss, pending } = useFood();
   const [newName, setNewName] = useState("");
   const [unit, setUnit] = useState("pacote de 1 kg");
   const [perBasket, setPerBasket] = useState("0");
   const [itemId, setItemId] = useState(initialItemId);
   const [quantity, setQuantity] = useState("1");
+  const [expiry, setExpiry] = useState("");
+  const [lossLot, setLossLot] = useState("");
+  const [lossQty, setLossQty] = useState("1");
+  const [lossReason, setLossReason] = useState<FoodLossReason>("expired");
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const metrics = foodMetrics(data);
   const selectedItem = data.items.find(item => item.id === itemId);
   const selectedNeed = metrics.needs.find(item => item.itemId === itemId);
+  const activeLots = (data.lots ?? []).filter(l => l.remaining > 0);
+  const lossCandidate = activeLots.find(l => l.id === lossLot);
   return <section className="food-section" aria-labelledby="food-stock-title">
     <div className="food-heading-block"><h2 id="food-stock-title">Estoque de alimentos</h2><p>Cadastre os produtos e registre cada doação por embalagem recebida.</p></div>
     <div className="food-duo">
       <article className="food-card" id="food-receive-form"><h3>Registrar entrada</h3><p className="food-muted">Escolha o alimento, indique quantas embalagens chegaram e confirme.</p><form className="food-form" onSubmit={async event => {
-        event.preventDefault(); const r = await receive(itemId, Number(quantity)); setFeedback(r); if (r.ok) setQuantity("1");
+        event.preventDefault(); const r = await receive(itemId, Number(quantity), expiry || null); setFeedback(r); if (r.ok) {setQuantity("1");setExpiry("");}
       }}>
         <label>Alimento<select required value={itemId} onChange={event => setItemId(event.target.value)}><option value="">Selecione um alimento</option>{data.items.map(item => <option value={item.id} key={item.id}>{item.name} · {item.unit}</option>)}</select></label>
         {selectedItem && <div className="food-selected-stock" role="status"><strong>{selectedItem.stock} embalagens em estoque</strong><small>{selectedNeed?.missingNextMonth ? `Faltam ${selectedNeed.missingNextMonth} para atender a meta de um mês.` : "Sem falta prevista para o próximo mês."}</small></div>}
@@ -25,6 +31,8 @@ export default function FoodStockClient({ initialItemId }: { initialItemId: stri
         <div className="food-quick-quantities" role="group" aria-label="Quantidades rápidas">
           {[1, 5, 10].map(amount => <button key={amount} type="button" className={quantity === String(amount) ? "food-quick-quantity is-selected" : "food-quick-quantity"} aria-pressed={quantity === String(amount)} onClick={() => setQuantity(String(amount))}>{amount} {amount === 1 ? "embalagem" : "embalagens"}</button>)}
         </div>
+        <label>Validade do lote (opcional)<input type="date" min={brazilToday()} value={expiry} onChange={event=>setExpiry(event.target.value)}/></label>
+        <p className="food-muted">Confira a validade na embalagem. Se não souber, deixe em branco: o lote ficará sinalizado para conferência.</p>
         <button disabled={pending || !itemId} className="food-primary" type="submit">Adicionar ao estoque</button>
       </form></article>
       <article className="food-card"><h3>Novo alimento</h3><form className="food-form" onSubmit={async event => {
@@ -37,9 +45,30 @@ export default function FoodStockClient({ initialItemId }: { initialItemId: stri
       </form></article>
     </div>
     {feedback && <p role="status" className={feedback.ok ? "food-success" : "food-error"}>{feedback.message}</p>}
-    <article className="food-card"><div className="food-card-heading"><h3>Saldo atual</h3><strong>{metrics.totalPackages} embalagens</strong></div>
-      <div className="food-stock-grid">{data.items.map(item => <div key={item.id} className="food-stock-line"><div><strong>{item.name}</strong><small>{item.unit}</small></div><span>{item.stock}</span></div>)}</div>
-      <p className="food-muted">Os saldos consideram entradas e baixas por cestas distribuídas. A unidade de contagem é a embalagem cadastrada.</p>
+    <article className="food-card"><div className="food-card-heading"><h3>Saldo atual</h3><strong>{metrics.usablePackages} disponíveis · {metrics.totalPackages} registradas</strong></div>
+      <div className="food-stock-grid">{data.items.map(item => {const availability=lotValidity(data,item.id);return <div key={item.id} className="food-stock-line"><div><strong>{item.name}</strong><small>{item.unit} · {availability.expired ? `${availability.expired} vencidas · ` : ""}{availability.unknown ? `${availability.unknown} sem validade · ` : ""} ${availability.usable} utilizáveis</small></div><span>{item.stock}</span></div>;})}</div>
+      <p className="food-muted">A quantidade registrada inclui lotes vencidos até que sejam baixados como perda. As cestas usam somente os lotes não vencidos.</p>
+    </article>
+    <article className="food-card" id="food-loss-form">
+      <div className="food-card-heading"><div><h3>Registrar perda ou descarte</h3><p>Baixe embalagens vencidas, danificadas ou impróprias. O histórico é auditável.</p></div></div>
+      <form className="food-form" onSubmit={async event=>{
+        event.preventDefault();
+        const r=await recordLoss(lossLot,Number(lossQty),lossReason);
+        setFeedback(r);
+        if(r.ok){setLossQty("1");setLossLot("");}
+      }}>
+        <label>Lote<select required value={lossLot} onChange={event=>{setLossLot(event.target.value);setFeedback(null);}}>
+          <option value="">Selecione um lote com saldo</option>
+          {activeLots.map(l=>{const item=data.items.find(i=>i.id===l.itemId);return <option key={l.id} value={l.id}>{item?.name??"Alimento"} · {l.remaining} embalagens · {l.expiresOn ? `Validade: ${l.expiresOn.split("-").reverse().join("/")}` : "Validade não informada"}</option>;})}
+        </select></label>
+        {lossCandidate && <p className="food-muted">Saldo deste lote: {lossCandidate.remaining} embalagens. O descarte não pode ultrapassar esse saldo.</p>}
+        <label>Motivo<select value={lossReason} onChange={event=>setLossReason(event.target.value as FoodLossReason)}>
+          {Object.entries(LOSS_REASON_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+        </select></label>
+        <label>Embalagens descartadas<input required type="number" min="1" max={lossCandidate?.remaining??10000} step="1" inputMode="numeric" value={lossQty} onChange={event=>setLossQty(event.target.value)}/></label>
+        <button type="submit" disabled={pending||!lossLot} className="food-secondary">Registrar perda e baixar estoque</button>
+      </form>
+      {(data.losses??[]).length>0 && <div className="food-loss-history"><h3>Últimas baixas</h3><ol>{data.losses?.slice(0,8).map(l=><li key={l.id}><span>{data.items.find(i=>i.id===l.itemId)?.name??"Alimento"} · {LOSS_REASON_LABELS[l.reason]}</span><strong>{l.quantity} un.</strong></li>)}</ol></div>}
     </article>
   </section>;
 }
