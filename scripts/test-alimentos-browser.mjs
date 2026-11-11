@@ -49,6 +49,24 @@ try {
   await page.getByText('Cesta entregue e estoque atualizado (simulação)').waitFor();
   assert.match(await page.locator('.food-history').innerText(),/FAM-SIM-001/);
   await page.screenshot({path:'artifacts/alimentos-entregas.png',fullPage:true});
+  await page.getByRole('link',{name:'Estoque',exact:true}).click();
+  await page.getByRole('heading',{name:'Estoque de alimentos'}).waitFor();
+  const review=page.locator('#food-expiry-review');
+  const beforeCount=Number((await review.locator('.food-count').innerText()).split(' ')[0]);
+  assert.ok(beforeCount>0);
+  await review.locator('select').selectOption({index:1});
+  const beforeStock=await page.locator('.food-stock-grid').innerText();
+  await review.getByLabel('Data de validade encontrada').fill('2025-06-20');
+  await review.getByRole('alert').waitFor();
+  assert.equal(await review.getByRole('button',{name:'Confirmar validade e registrar no histórico'}).isDisabled(),true);
+  await review.getByRole('checkbox').check();
+  await review.getByRole('button',{name:'Confirmar validade e registrar no histórico'}).click();
+  await page.getByText('Validade confirmada (simulação)').waitFor();
+  assert.equal(Number((await review.locator('.food-count').innerText()).split(' ')[0]),beforeCount-1);
+  assert.equal(await page.locator('.food-stock-grid').innerText(),beforeStock,'Confirming date must not change stock');
+  await review.getByRole('heading',{name:'Últimas conferências de validade'}).waitFor();
+  await page.screenshot({path:'artifacts/alimentos-validade-revisada.png',fullPage:true});
+
   for(const path of ['/alimentos','/alimentos/estoque','/alimentos/cesta','/alimentos/entregas']){
     await page.goto(origin+path,{waitUntil:'networkidle'});
     const dims=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}));
