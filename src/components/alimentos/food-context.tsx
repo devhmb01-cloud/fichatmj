@@ -1,11 +1,11 @@
 "use client";
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import {
-  addFoodItem, deliverFoodBasket, initialFoodDemo, receiveFood,
+  addFoodItem, deliverFoodBasket, initialFoodDemo, receiveFoodLot, registerFoodLoss, type FoodLossReason,
   setFoodBasketQuantity, setFoodMonthlyFamilies, type FoodState,
 } from "@/lib/alimentos/model";
 import {
-  createFoodItem, deliverFood, receiveFoodStock,
+  createFoodItem, deliverFood, receiveFoodStock, recordFoodLoss,
   updateBasketItem, updateMonthlyFamilies, type FoodActionResponse,
 } from "@/app/alimentos/actions";
 
@@ -15,7 +15,8 @@ type Context = {
   persistent: boolean;
   pending: boolean;
   addItem: (name: string, unit: string, basket: number) => Promise<Outcome>;
-  receive: (itemId: string, quantity: number) => Promise<Outcome>;
+  receive: (itemId: string, quantity: number, expiresOn: string | null) => Promise<Outcome>;
+  recordLoss: (lotId: string, quantity: number, reason: FoodLossReason) => Promise<Outcome>;
   updateBasket: (itemId: string, quantity: number) => Promise<Outcome>;
   updateTarget: (count: number) => Promise<Outcome>;
   deliver: (familyId: string) => Promise<Outcome>;
@@ -51,9 +52,12 @@ export function FoodProvider({ children, initialState, persistent = false }: {
   const addItem: Context["addItem"] = async (name, unit, basket) => persistent
     ? remote(`new:${name}:${unit}:${basket}`, id => createFoodItem({ requestId: id, name, unit, perBasket: basket }), "Alimento cadastrado.")
     : local(() => addFoodItem(data, crypto.randomUUID(), name, unit, basket), "Alimento cadastrado");
-  const receive: Context["receive"] = async (itemId, quantity) => persistent
-    ? remote(`receive:${itemId}:${quantity}`, id => receiveFoodStock({ requestId: id, itemId, quantity }), "Entrada registrada.")
-    : local(() => receiveFood(data, itemId, quantity), "Entrada registrada");
+  const receive: Context["receive"] = async (itemId, quantity, expiresOn) => persistent
+    ? remote(`receive:${itemId}:${quantity}:${expiresOn ?? "unknown"}`, id => receiveFoodStock({ requestId: id, itemId, quantity, expiresOn }), "Entrada e validade registradas.")
+    : local(() => receiveFoodLot(data, itemId, quantity, expiresOn), "Entrada registrada");
+  const recordLoss: Context["recordLoss"] = async (lotId, quantity, reason) => persistent
+    ? remote(`loss:${lotId}:${quantity}:${reason}`, id => recordFoodLoss({requestId:id,lotId,quantity,reason}),"Perda registrada e saldo atualizado.")
+    : local(() => registerFoodLoss(data,lotId,quantity,reason), "Perda registrada");
   const updateBasket: Context["updateBasket"] = async (itemId, quantity) => persistent
     ? remote(`basket:${itemId}:${quantity}`, id => updateBasketItem({ requestId: id, itemId, perBasket: quantity }), "Cesta padrão atualizada.")
     : local(() => setFoodBasketQuantity(data, itemId, quantity), "Composição atualizada");
@@ -64,7 +68,7 @@ export function FoodProvider({ children, initialState, persistent = false }: {
     ? remote(`deliver:${familyId}`, id => deliverFood({ requestId: id, familyId }), "Cesta entregue e estoque atualizado.")
     : local(() => deliverFoodBasket(data, familyId, crypto.randomUUID(), new Date().toISOString()), "Cesta entregue e estoque atualizado");
   function resetDemo() { if (!persistent) setData(initialFoodDemo()); }
-  return <FoodContext.Provider value={{ data, persistent, pending, addItem, receive, updateBasket, updateTarget, deliver, resetDemo }}>{children}</FoodContext.Provider>;
+  return <FoodContext.Provider value={{ data, persistent, pending, addItem, receive, recordLoss, updateBasket, updateTarget, deliver, resetDemo }}>{children}</FoodContext.Provider>;
 }
 export function useFood() {
   const value = useContext(FoodContext);
