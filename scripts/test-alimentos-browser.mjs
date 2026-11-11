@@ -24,6 +24,19 @@ try {
   await page.getByRole('button',{name:'Adicionar ao estoque'}).click();
   await page.getByText('Entrada registrada (simulação)').waitFor();
   assert.match(await page.locator('.food-stock-line').filter({hasText:'Leite'}).innerText(),/125/);
+  // A new donation may carry an expiry; a recorded loss must update the same lot and stock.
+  const later=new Date(Date.now()+80*86400000).toISOString().slice(0,10);
+  await page.getByLabel('Validade do lote (opcional)').fill(later);
+  await page.getByLabel('Quantidade de embalagens').fill('3');
+  await page.getByRole('button',{name:'Adicionar ao estoque'}).click();
+  await page.getByText('Entrada registrada (simulação)').waitFor();
+  await page.locator('#food-loss-form select').first().selectOption({index:1});
+  await page.getByLabel('Embalagens descartadas').fill('2');
+  await page.locator('#food-loss-form select').nth(1).selectOption('damaged');
+  await page.getByRole('button',{name:'Registrar perda e baixar estoque'}).click();
+  await page.getByText('Perda registrada (simulação)').waitFor();
+  assert.match(await page.locator('.food-stock-line').filter({hasText:'Leite'}).innerText(),/126/);
+
   await page.screenshot({path:'artifacts/alimentos-estoque.png',fullPage:true});
   await page.getByRole('link',{name:'Cesta padrão'}).click();
   await page.getByRole('heading',{name:'Cesta padrão'}).waitFor();

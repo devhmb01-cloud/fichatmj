@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   initialFoodDemo, foodMetrics, receiveFood, addFoodItem, setFoodBasketQuantity,
-  setFoodMonthlyFamilies, deliverFoodBasket,
+  setFoodMonthlyFamilies, deliverFoodBasket, receiveFoodLot, registerFoodLoss,
 } from '../src/lib/alimentos/model.ts';
 
 const iso = '2026-11-07T12:00:00.000Z';
@@ -72,4 +72,28 @@ test('cesta vazia não permite entrega nem cobertura enganosa', () => {
 });
 test('família inexistente não recebe entrega', () => {
   assert.throws(()=>deliverFoodBasket(initialFoodDemo(),'random','deliver-1',iso),/família cadastrada/);
+});
+
+test('validade bloqueia lote vencido e reduz cobertura quando o lote vence', () => {
+  const state=initialFoodDemo();
+  const today=new Date();
+  const yesterday=new Date(today.getTime()-3*86400000).toISOString().slice(0,10);
+  const lot=state.lots.find(l=>l.itemId==='f-leite');
+  lot.expiresOn=yesterday;
+  const m=foodMetrics(state);
+  assert.equal(m.expiredPackages,45);
+  assert.equal(m.basketsPossible,0);
+  assert.equal(m.usablePackages,initialFoodDemo().items.reduce((n,i)=>n+i.stock,0)-45);
+  assert.throws(()=>receiveFoodLot(state,'f-leite',2,yesterday),/vencidos/);
+});
+test('perdas diminuem estoque, ficam no histórico e não são duplicadas',()=>{
+  const a=initialFoodDemo();
+  const lot=a.lots.find(l=>l.itemId==='f-leite');
+  const b=registerFoodLoss(a,lot.id,3,'damaged','loss-demo-1');
+  assert.equal(b.items.find(i=>i.id==='f-leite').stock,42);
+  assert.equal(b.lots.find(l=>l.id===lot.id).remaining,42);
+  assert.equal(foodMetrics(b).recordedLosses,3);
+  assert.equal(a.items.find(i=>i.id==='f-leite').stock,45);
+  assert.throws(()=>registerFoodLoss(b,lot.id,4,'damaged','loss-demo-1'),/já registrada/);
+  assert.throws(()=>registerFoodLoss(b,lot.id,100,'damaged'),/maior que o saldo/);
 });
