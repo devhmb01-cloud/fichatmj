@@ -1,0 +1,65 @@
+/* Estilos isolados por .bazar-page: não alteram os formulários de famílias. */
+.bazar-page{max-width:980px;margin:0 auto;padding:0 0 48px;color:var(--foreground,#17202c)}
+.bazar-page *{box-sizing:border-box}
+.bazar-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:10px 0 14px}
+.bazar-top h1{font-size:clamp(1.65rem,4vw,2.2rem);letter-spacing:-.04em;margin:2px 0}
+.bazar-eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin:0}
+.bazar-pill{background:#e0f2e9;color:#175c42;border-radius:40px;font-size:12px;font-weight:700;padding:7px 12px}
+.bazar-warning{background:#fff8e6;border:1px solid #f1dca6;border-radius:13px;color:#6c4a0c;padding:12px 15px;font-size:13px;line-height:1.5;margin-bottom:16px}
+.bazar-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:5px;border-radius:14px;background:#edf1f4;margin-bottom:23px}
+.bazar-tabs a{text-align:center;border-radius:10px;color:#455468;text-decoration:none;font-size:14px;font-weight:650;padding:11px 6px}
+.bazar-tabs a[aria-current=page]{background:#fff;color:#153d30;box-shadow:0 2px 7px #1f29371c}
+.bazar-content{display:grid;gap:16px}
+.bazar-heading h2{font-size:clamp(1.35rem,3vw,1.65rem);margin:0 0 5px;letter-spacing:-.025em}
+.bazar-heading p,.bazar-muted{font-size:14px;color:#64748b;line-height:1.5;margin:0}
+.bazar-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.bazar-metric,.bazar-panel{border:1px solid #e1e7e9;background:#fff;border-radius:16px;padding:18px}
+.bazar-metric{display:flex;flex-direction:column;gap:7px;min-width:0}
+.bazar-metric span,.bazar-metric small{font-size:12px;color:#64748b}
+.bazar-metric strong{font-size:clamp(1.25rem,3vw,1.85rem);line-height:1.15;word-break:break-word;letter-spacing:-.03em}
+.bazar-actions{display:flex;gap:9px;flex-wrap:wrap}
+.bazar-primary-action,.bazar-secondary-action{border:0;border-radius:12px;padding:13px 16px;font-size:14px;font-weight:700;display:inline-flex;justify-content:center;align-items:center;text-align:center;cursor:pointer;text-decoration:none;min-height:44px}
+.bazar-primary-action{background:#185d46;color:#fff}
+.bazar-secondary-action{background:#e7f3ed;color:#185d46}
+.bazar-primary-action:disabled,.bazar-secondary-action:disabled{opacity:.5;cursor:not-allowed}
+.bazar-page :is(a,button,select,input):focus-visible{outline:3px solid #429a78;outline-offset:2px}
+.bazar-panel h3{font-size:17px;margin:0 0 16px}
+.bazar-panel-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+.bazar-panel-title h3{margin:0}
+.bazar-panel-title span{font-size:12px;color:#64748b}
+.bazar-price-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.bazar-price-tile{border-radius:12px;background:#f4f7f6;padding:12px 10px;display:flex;gap:5px;flex-direction:column}
+.bazar-price-tile span,.bazar-price-tile small{font-size:12px;color:#5b6b70}
+.bazar-price-tile strong{font-size:25px;line-height:1.1}
+.bazar-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bazar-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:650;color:#334155}
+.bazar-form input,.bazar-form select{width:100%;min-height:44px;border:1px solid #cbd5db;border-radius:10px;background:#fff;padding:10px 12px;font:inherit;color:#17202c}
+.bazar-form button{grid-column:1/-1}
+.bazar-stock-list{display:grid;gap:0}
+.bazar-stock-row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #eff2f3;font-size:14px}
+.bazar-stock-row:last-child{border-bottom:0}
+.bazar-sale-list{display:grid;gap:0}
+.bazar-sale-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid #ecf0f2}
+.bazar-sale-row:last-child{border-bottom:0}
+.bazar-sale-row>div:first-child{display:flex;flex-direction:column;gap:4px}
+.bazar-sale-row small{font-size:12px;color:#64748b}
+.bazar-stepper{display:flex;align-items:center;gap:8px}
+.bazar-stepper button{width:44px;height:44px;border-radius:11px;border:1px solid #ccdad3;background:#f4f8f5;color:#185d46;font-size:22px;font-weight:700;cursor:pointer}
+.bazar-stepper button:disabled{opacity:.4;cursor:not-allowed}
+.bazar-stepper output{min-width:24px;text-align:center;font-size:17px;font-weight:700}
+.bazar-link-button{background:none;border:0;color:#185d46;padding:10px 0;cursor:pointer;font-size:13px;font-weight:700;text-align:left}
+.bazar-checkout{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f2f7f4;padding:18px;border-radius:16px;border:1px solid #d6e7dd}
+.bazar-checkout>div{display:flex;flex-direction:column;gap:5px}
+.bazar-checkout small{font-size:12px;color:#64748b}
+.bazar-checkout strong{font-size:23px;letter-spacing:-.03em}
+.bazar-checkout .bazar-primary-action,.bazar-checkout .bazar-link-button{grid-column:1/-1}
+.bazar-checkout .bazar-link-button{text-align:center;padding:0}
+.bazar-history{list-style:none;margin:0;padding:0}
+.bazar-history li{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #edf1f3;font-size:13px}
+.bazar-history li:last-child{border-bottom:0}
+.bazar-feedback-ok,.bazar-feedback-error{border-radius:10px;padding:12px 14px;font-size:14px;margin:0}
+.bazar-feedback-ok{background:#e7f5ec;color:#145637}
+.bazar-feedback-error{background:#fff0ef;color:#8a2621}
+.bazar-demo-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e1e7e9;margin-top:25px;padding:12px 0;font-size:12px;color:#64748b}
+@media(max-width:690px){.bazar-metrics{grid-template-columns:1fr 1fr}.bazar-metric:last-child{grid-column:1/-1}.bazar-price-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bazar-metric,.bazar-panel{padding:15px}.bazar-actions{display:grid;grid-template-columns:1fr 1fr}.bazar-actions>*{padding:12px 7px}}
+@media(max-width:400px){.bazar-actions{grid-template-columns:1fr}.bazar-metrics{grid-template-columns:1fr 1fr}.bazar-metric strong{font-size:1.3rem}.bazar-checkout strong{font-size:1.25rem}.bazar-page{padding-bottom:28px}}

@@ -1,0 +1,48 @@
+name: Alimentos & Cestas quality (isolated)
+on:
+  push:
+    branches:
+      - feat/alimentos-cestas-20261107
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: Food pantry quality — no deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test scripts/test-alimentos.mjs
+      - run: node scripts/test-alimentos-db.mjs
+      - run: node scripts/test-alimentos-validade-db.mjs
+      - run: node scripts/test-alimentos-validade-update-db.mjs
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Mobile smoke — local Next server, no deployment
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npm run start -- --port 3100 > /tmp/alimentos-next.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:3100/alimentos > /dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/test-alimentos-browser.mjs
+      - name: Review mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alimentos-mobile-review
+          path: artifacts/alimentos-*.png
+          retention-days: 7
+          if-no-files-found: ignore

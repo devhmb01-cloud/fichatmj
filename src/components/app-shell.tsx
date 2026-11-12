@@ -7,6 +7,8 @@ const links = [
   ["/familias", "Famílias", "◎"],
   ["/novo", "Novo cadastro", "＋"],
   ["/relatorios", "Relatórios", "▤"],
+  ["/bazar", "Bazar", "▣"],
+  ["/alimentos", "Alimentos", "▥"],
 ];
 export function AppShell({
   children,
@@ -21,22 +23,24 @@ export function AppShell({
       <a className="skip" href="#conteudo">
         Pular para conteúdo
       </a>
-      <aside>
+      <aside className="app-sidebar">
         <Link className="brand" href="/">
           <b>tmj</b>
           <span>
-            Ficha TMJ<small>GESTÃO DE FAMÍLIAS</small>
+            Ficha TMJ<small>GESTÃO DA ONG</small>
           </span>
         </Link>
-        <p className="nav-label">ESPAÇO DE ACOLHIMENTO</p>
-        <nav aria-label="Navegação principal">
+        <p className="nav-label">NAVEGAÇÃO PRINCIPAL</p>
+        <nav className="app-primary-nav" aria-label="Navegação principal">
           {links.map(([href, label, icon]) => (
             <Link
               href={href}
               key={href}
               aria-current={
                 path === href ||
-                (href === "/familias" && path.startsWith("/familias/"))
+                (href === "/familias" && path.startsWith("/familias/")) ||
+                (href === "/bazar" && path.startsWith("/bazar/")) ||
+                (href === "/alimentos" && path.startsWith("/alimentos/"))
                   ? "page"
                   : undefined
               }

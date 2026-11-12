@@ -52,6 +52,8 @@ export const config = {
     "/familias/:path*",
     "/novo",
     "/relatorios",
+    "/bazar/:path*",
+    "/alimentos/:path*",
     "/login",
     "/acesso-negado",
   ],
